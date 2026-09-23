@@ -2235,27 +2235,44 @@ const server = http.createServer((req, res) => {
             .replace(/\s+/g, ' ')
             .trim();
 
-        if (clean.length > 180) {
-            const firstDot = clean.indexOf('।');
-            if (firstDot > 20 && firstDot < 180) {
-                clean = clean.substring(0, firstDot + 1);
+        // Split text by '।' (dari) into chunks under 170 chars for Google TTS
+        const rawParts = clean.split('।').map(p => p.trim()).filter(Boolean);
+        const chunks = [];
+        let cur = '';
+
+        for (const p of rawParts) {
+            if ((cur + ' ' + p + '।').length < 170) {
+                cur = cur ? (cur + ' ' + p + '।') : (p + '।');
             } else {
-                clean = clean.substring(0, 175) + '।';
+                if (cur) chunks.push(cur);
+                cur = p + '।';
             }
         }
+        if (cur) chunks.push(cur);
 
-        const ttsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=bn&client=tw-ob&q=' + encodeURIComponent(clean);
-        https.get(ttsUrl, {
-            headers: {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-            }
-        }, (googleRes) => {
+        // Cap at 4 chunks (~600 chars) for full detailed natural speech
+        const selectedChunks = (chunks.length > 0 ? chunks : [clean.substring(0, 160) + '।']).slice(0, 4);
+
+        function fetchTtsChunk(chunkText) {
+            return new Promise((resolve) => {
+                const ttsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=bn&client=tw-ob&q=' + encodeURIComponent(chunkText);
+                https.get(ttsUrl, { headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' } }, gRes => {
+                    const data = [];
+                    gRes.on('data', c => data.push(c));
+                    gRes.on('end', () => resolve(Buffer.concat(data)));
+                }).on('error', () => resolve(Buffer.alloc(0)));
+            });
+        }
+
+        Promise.all(selectedChunks.map(fetchTtsChunk)).then(audioBuffers => {
+            const fullMp3 = Buffer.concat(audioBuffers);
             res.writeHead(200, {
                 'Content-Type': 'audio/mpeg',
+                'Content-Length': fullMp3.length,
                 'Cache-Control': 'public, max-age=3600'
             });
-            googleRes.pipe(res);
-        }).on('error', (err) => {
+            res.end(fullMp3);
+        }).catch(err => {
             res.writeHead(500, { 'Content-Type': 'text/plain' });
             res.end('TTS Error: ' + err.message);
         });
