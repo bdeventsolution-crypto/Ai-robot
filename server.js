@@ -508,6 +508,17 @@ function classifyIntent(q) {
     if (/^(tero|তেরো|তের|thirteen)$/i.test(raw)) return 'NUMBER_13_NEW_RESEARCH';
 
     // Direct Natural Language Specific Question Matches
+    const isAutoStudySchedule = (
+        raw.includes('study kore ke') || raw.includes('nije nije') || raw.includes('study kore dey ke') ||
+        raw.includes('all auto') || raw.includes('duibar') || raw.includes('4 hour') || raw.includes('4 ghonta') ||
+        raw.includes('ke study kore') || raw.includes('নিজে নিজে') || raw.includes('laptop off') ||
+        raw.includes('computer off') || raw.includes('ল্যাপটপ অফ') || raw.includes('mobile theke study') ||
+        raw.includes('web theke study') || raw.includes('অফ করে দিলেও') || raw.includes('off kore dileo')
+    );
+    if (isAutoStudySchedule) {
+        return 'AUTONOMOUS_STUDY_SCHEDULE';
+    }
+
     const isResearchOrFundamental = (
         raw.includes('research') || raw.includes('রিসার্চ') || 
         raw.includes('fundamental') || raw.includes('ফান্ডামেন্টাল') || 
@@ -515,7 +526,10 @@ function classifyIntent(q) {
         raw.includes('new kisu') || raw.includes('notun kisu') || raw.includes('নতুন কিছু') ||
         raw.includes('new research') || raw.includes('research update') || raw.includes('notun research') || 
         raw.includes('rodot er new research') || raw.includes('robot er new research') ||
-        raw.includes('news update') || raw.includes('market update')
+        raw.includes('news update') || raw.includes('market update') ||
+        raw.includes('reuters') || raw.includes('রয়টার্স') || raw.includes('রয়টার্স') ||
+        raw.includes('fxstreet') || raw.includes('এফএক্সস্ট্রিট') ||
+        raw.includes('taza khobor') || raw.includes('তাজা খবর')
     );
     if (isResearchOrFundamental) {
         return 'NUMBER_13_NEW_RESEARCH';
@@ -1159,60 +1173,55 @@ ${topMem || '  (ব্রেইন প্রতিনিয়ত নতুন �
     if (intent === 'NUMBER_13_NEW_RESEARCH') {
         response.avatarEmotion = 'ANALYZING';
         response.recommendation = 'LIVE FUNDAMENTAL & QUANT MACRO INTELLIGENCE';
-        response.sourcesUsed = ['Google News Live RSS', 'Reuters & FXStreet', 'Hermes Quantitative Brain', 'Yahoo 15m Real Data'];
+        response.sourcesUsed = ['Google News Live RSS (Reuters & FXStreet)', 'FXStreet Live RSS', 'Yahoo Finance (GC=F, DX-Y)', 'Investing.com', 'Hermes Learned Brain'];
 
+        const numGold = typeof globalMarketState.yahoo.goldPrice === 'number' ? globalMarketState.yahoo.goldPrice : parseFloat(globalMarketState.yahoo.goldPrice) || 4320;
+        const numDxy = typeof globalMarketState.yahoo.dxyPrice === 'number' ? globalMarketState.yahoo.dxyPrice : parseFloat(globalMarketState.yahoo.dxyPrice) || 104.2;
+
+        const synth = StudyEngine.synthesizeNewsResearchStudy(numGold, numDxy);
         const ss = StudyEngine.getStudyStatus();
-        const allInsights = (typeof StudyEngine.getAllInsights === 'function' ? StudyEngine.getAllInsights() : (ss.recentInsights || []));
-        
-        // Dynamic Shuffle of insights
-        const shuffled = [...allInsights].sort(() => 0.5 - Math.random());
-        const selectedInsights = shuffled.slice(0, 3);
-        const dynamicMem = selectedInsights.map((ins, i) =>
-            `   ${i+1}. 🎥 **[${ins.source}]** ${ins.text}\n      ↳ ${ins.details ? ins.details.slice(0, 110) + '...' : ''}`
+
+        // 2 YouTube insights
+        const ytInsights = (ss.recentVideos || []).slice(0, 2).map((v, i) =>
+            `  • 📺 **[${v.channel || 'YouTube'}]** ${v.title}\n    ↳ _${v.desc ? v.desc.slice(0, 110) + '...' : ''}_`
         ).join('\n\n');
 
-        // Fetch fresh live news headlines
-        const freshNews = await fetchMarketNews();
-        const topHeadlines = freshNews.slice(0, 4).map((h, i) => 
-            `• 📰 **[${h.source} | ${h.time}]** ${h.title}`
-        ).join('\n');
+        response.replyBengali = `${synth.markdownText}
 
-        const ydb = globalMarketState.yahooDatabase;
-        const liveATR = ydb ? ydb.atr14 : 8.41;
-        const liveGold = typeof globalMarketState.yahoo.goldPrice === 'number' ? globalMarketState.yahoo.goldPrice.toFixed(2) : globalMarketState.yahoo.goldPrice;
-        const dxyPrice = parseFloat(globalMarketState.yahoo.dxyPrice || 101.11).toFixed(2);
-        const dxyBias = globalMarketState.yahoo.dxyBias || 'DXY WEAK (BULLISH GOLD BIAS)';
-        const bm = globalMarketState.benchmarks;
-        const diffClose = (liveGold - bm.yesterdayNYClose).toFixed(1);
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📺 **৫. ইউটিউব ও কোয়ান্ট স্ট্র্যাটেজি স্টাডি (দিনে ২ বার স্বয়ংক্রিয়):**
+${ytInsights || '  • ইউটিউব থেকে কোয়ান্ট লিকুইডিটি ও Wyckoff স্ট্র্যাটেজি স্টাডি মেমোরিতে যুক্ত করা আছে।'}`;
+
+        response.voiceText = synth.voiceText;
+        return response;
+    }
+
+    // ───────────────────────────────────────────────────────────────────────
+    // INTENT: AUTONOMOUS_STUDY_SCHEDULE — How autonomous study works & 24/7 Cloud Support
+    // ───────────────────────────────────────────────────────────────────────
+    if (intent === 'AUTONOMOUS_STUDY_SCHEDULE') {
+        response.avatarEmotion = 'TALKING';
+        response.recommendation = '24/7 AUTONOMOUS CLOUD ENGINE ACTIVE';
+        response.sourcesUsed = ['Render Cloud Daemon (24/7)', 'Multi-Tier Study Engine', 'Hermes Learned Brain'];
+
+        const ss = StudyEngine.getStudyStatus();
 
         response.replyBengali =
-`কমান্ডার, **[লাইভ মার্কেট রিসার্চ, ফান্ডামেন্টাল নিউজ ও কোয়ান্ট আপডেট]**:
+`কমান্ডার, **অল-অটো সেলফ-স্টাডি ও ২৪/৭ ক্লাউড অপারেশন রোডম্যাপ**:
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🌍 **১. লাইভ ব্রেকিং ফান্ডামেন্টাল নিউজ (Google News & Top Financial Media):**
-${topHeadlines || '• 📰 মার্কেট থেকে তাজা নিউজ হেডলাইন ফেচ করা হচ্ছে...'}
+১. **কে স্টাডি করে দেয়? হার্মিস নাকি নিজে নিজে?**
+• **সম্পূর্ণ নিজে নিজে (100% Autonomous):** কোনো মানুষের বাটন ক্লিক বা ইনপুট ছাড়াই ব্যাকগ্রাউন্ডে হার্মিসের সেলফ-স্টাডি ইঞ্জিন একা একাই ওয়েব ক্রল করে রয়টার্স, এফএক্সস্ট্রিট, ইয়াহু এবং ইউটিউব থেকে ডেটা স্টাডি করে ব্রেইন মেমোরিতে জমা রাখে।
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏛️ **২. ম্যাক্রো ইকোনমিক ও কারেন্সি ফান্ডামেন্টালস (Macro Drivers):**
-• **DXY ডলার ইনডেক্স:** **${dxyPrice}** (${dxyBias})
-  ↳ *ইমপ্যাক্ট:* ডলার ইনডেক্স দুর্বল থাকা গোল্ডের বুলিশ মোমেন্টামকে সরাসরি ব্যাকআপ দিচ্ছে।
-• **ফেড পলিসি ও ইন্টারেস্ট রেট আউটলুক:** ইউএস সেন্ট্রাল ব্যাংক রেট কাট সাইকেলে অবস্থান করছে। নন-ইল্ডিং অ্যাসেট হিসেবে গোল্ডের জন্য এটি লং-টার্ম প্রাতিষ্ঠানিক সাপোর্ট।
-• **সেন্ট্রাল ব্যাংক গোল্ড অ্যাকুমুলেশন ও নিরাপদ আশ্রয়:** PBOC (চীন) এবং গ্লোবাল সেন্ট্রাল ব্যাংকগুলোর গোল্ড রিজার্ভ বৃদ্ধি ও ভূ-রাজনৈতিক অস্থিরতার কারণে লোয়ার ডিপে লিকুইডিটি অ্যাবসর্পশন চলছে।
+২. **আপনার দেওয়া শিডিউল অনুযায়ী সক্রিয় করা হয়েছে:**
+• 📰 **নিউজ রিসার্চ (রয়টার্স, এফএক্সস্ট্রিট, ইয়াহু, ইনভেস্টিং):** **প্রতি ১ ঘণ্টা পর পর অল-অটো** (সম্পন্ন: **${ss.newsStudyCycles || 0} বার**)
+• 📺 **ইউটিউব ও কোয়ান্ট স্ট্র্যাটেজি:** **প্রতিদিন ২ বার (প্রতি ১২ ঘণ্টা পর পর)** (সম্পন্ন: **${ss.youtubeStudyCycles || 0} বার**)
+• 🧠 **সংরক্ষিত প্রাতিষ্ঠানিক নলেজ:** **${ss.totalInsights} টি ইনসাইট**
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📊 **৩. রিয়েল-টাইম M15 টেকনিক্যাল ও অর্ডার ফ্লো কোয়ান্ট:**
-• **বর্তমান গোল্ড প্রাইজ:** **$${liveGold}** (NY Close থেকে **${diffClose > 0 ? '+' + diffClose : diffClose} pt**)
-• **ATR(14) ভোলাটিলিটি:** **${liveATR} pt** | **২.৫x ATR নিউজ শিল্ড:** সক্রিয় (${(liveATR * 2.5).toFixed(1)} pt এর বেশি স্পাইক ক্যান্ডেল অবৈধ)
-• **ডিলিং রেঞ্জ জোন:** **${bm.regime}** (${bm.sslBslStatus})
-• **অ্যালগো গাইডলাইন:** হাইতে রিটেল ব্রেকআউট ফোমো (FOMO) বাই এড়িয়ে ডিপ ডিসকাউন্ট ও ভ্যালু এরিয়া লো (VAL) সুইপ থেকে বাই কনফার্মেশন ধরা।
+৩. **ল্যাপটপ অফ থাকলেও কি চলবে? (Render Cloud ২৪/৭):**
+• **হ্যাঁ, নিশ্চিত থাকুন!** আমাদের কোড রেন্ডার ক্লাউডে হোস্ট করা (\`https://ai-robot-ia77.onrender.com\`)।
+• রেন্ডার ক্লাউড ২৪ ঘণ্টা ৩৬৫ দিন অনলাইনে রানিং থাকে। তাই আপনার **ল্যাপটপ বন্ধ থাকলেও ক্লাউড সার্ভার নিজে নিজে ১ ঘণ্টা পর পর খবর স্টাডি করবে** এবং আপনি যেকোনো সময় মোবাইল থেকে লিংকে ঢুকে তাজা স্টাডি রিপোর্ট পড়তে ও শুনতে পারবেন!`;
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 **৪. হার্মিস ব্রেইন স্টাডি থেকে ৩টি নতুন প্রাতিষ্ঠানিক কৌশল (Dynamic Insights):**
-${dynamicMem || '   (ইউটিউব ও ওয়েব থেকে লাইভ স্ট্র্যাটেজি প্রসেস হচ্ছে...)'}
-
-💡 **সারসংক্ষেপ:** ফান্ডামেন্টাল এবং টেকনিক্যাল উভয় দিক থেকেই গোল্ড ডিপ ডিসকাউন্টে বায়ারদের নিয়ন্ত্রণে আছে। হুটহাট হাইতে বাই না নিয়ে ডিসকাউন্ট সুইপে স্নাইপার এন্ট্রি নিন!`;
-
-        response.voiceText = `কমান্ডার, লাইভ ফান্ডামেন্টাল ও রিসার্চ আপডেটে ডলার ইনডেক্স ${dxyPrice} এ দুর্বল অবস্থায় আছে। গোল্ড $${liveGold} এ ডিসকাউন্ট জোনে বায়ারদের দখলে। ব্রেকিং নিউজে সেন্ট্রাল ব্যাংকের গোল্ড রিজার্ভ সাপোর্ট দেখা যাচ্ছে।`;
+        response.voiceText = `কমান্ডার, নিশ্চিত থাকুন। হার্মিসের সেলফ-স্টাডি ব্যাকগ্রাউন্ডে সম্পূর্ণ নিজে নিজেই চলে। প্রতি এক ঘণ্টা পর পর তাজা নিউজ এবং দিনে দুইবার ইউটিউব স্টাডি হয়। আপনার ল্যাপটপ বন্ধ থাকলেও রেন্ডার ক্লাউডে এটা চব্বিশ ঘণ্টা নিজে থেকেই স্টাডি চালিয়ে যাবে।`;
         return response;
     }
 
@@ -1378,8 +1387,8 @@ ${dynamicMem || '   (ইউটিউব ও ওয়েব থেকে লাই�
     // ───────────────────────────────────────────────────────────────────────
     if (intent === 'STUDY_STATUS') {
         response.avatarEmotion = 'TALKING';
-        response.recommendation = 'KNOWLEDGE BASE SYNCED';
-        response.sourcesUsed = ['YouTube Study Engine', 'Financial RSS Feeds', 'Hermes Learned Brain'];
+        response.recommendation = 'MULTI-TIER AUTONOMOUS STUDY ACTIVE';
+        response.sourcesUsed = ['Every 1h News Crawler (Reuters/FXStreet)', 'Twice Daily YouTube/Strategy Engine', 'Hermes Learned Brain'];
 
         const ss = StudyEngine.getStudyStatus();
         const topMem = (ss.recentInsights || []).slice(0, 5).map((ins, i) =>
@@ -1387,21 +1396,22 @@ ${dynamicMem || '   (ইউটিউব ও ওয়েব থেকে লাই�
         ).join('\n\n');
 
         response.replyBengali =
-`কমান্ডার, **ইউটিউব এবং ওয়েব থেকে স্বয়ংক্রিয়ভাবে স্টাডি করা জ্ঞানভাণ্ডার (Self-Learning Brain)**:
+`কমান্ডার, **অল-অটো মাল্টি-টায়ার সেলফ-স্টাডি ইঞ্জিন (Autonomous Study Brain)** সক্রিয় আছে:
 
-📚 **লার্নিং স্ট্যাটাস:**
-• ব্রেইনে মোট সংরক্ষিত নলেজ: **${ss.totalInsights} টি প্রাতিষ্ঠানিক ইনসাইট**
-• মোট স্টাডি সাইকেল সম্পন্ন: **${ss.studyCycles} টি**
-• শেষ স্টাডি সম্পন্ন: ${ss.lastStudyTime || 'এখনই'}
+📅 **স্বয়ংক্রিয় শিডিউল ও স্ট্যাটাস:**
+• 📰 **লাইভ নিউজ রিসার্চ (রয়টার্স, এফএক্সস্ট্রিট, ইয়াহু):** **প্রতি ১ ঘণ্টা পর পর অল-অটো** (সম্পন্ন: ${ss.newsStudyCycles || 0} বার)
+• 📺 **ইউটিউব ও স্ট্র্যাটেজি রিসার্চ:** **দিনে ২ বার অল-অটো (প্রতি ১২ ঘণ্টা)** (সম্পন্ন: ${ss.youtubeStudyCycles || 0} বার)
+• 🧠 **ব্রেইনে মোট সংরক্ষিত নলেজ:** **${ss.totalInsights} টি প্রাতিষ্ঠানিক ইনসাইট**
+• ☁️ **২৪/৭ ক্লাউড সুবিধা:** আপনার ল্যাপটপ বন্ধ থাকলেও রেন্ডার ক্লাউডে ব্যাকগ্রাউন্ডে একা একাই এই স্টাডি সম্পন্ন হতে থাকে।
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 🎓 **সর্বশেষ শেখা ৫টি গুরুত্বপূর্ণ স্ট্র্যাটেজি ও তথ্য:**
 ${topMem || '  (ব্রেইন প্রতিনিয়ত নতুন ভিডিও ও নিউজ প্রসেস করছে...)'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 এই জ্ঞানগুলো আমার সিদ্ধান্ত গ্রহণ এবং ককপিট সিগন্যালে সরাসরি যুক্ত হয়ে আমাকে আরো স্মার্ট করে তুলছে!`;
+🤖 এই গবেষণা ও লাইভ নিউজ প্রতি ১ ঘণ্টা পর পর নিজে নিজেই আপডেট হয়ে ককপিটের সিগন্যালে যুক্ত হচ্ছে।`;
 
-        response.voiceText = `কমান্ডার, আমি ইউটিউব এবং ওয়েব থেকে আটত্রিশটিরও বেশি প্রাতিষ্ঠানিক ট্রেডিং কৌশল শিখেছি যা আমার ব্রেইনে সংরক্ষিত আছে।`;
+        response.voiceText = `কমান্ডার, অল-অটো স্টাডি ইঞ্জিন চালু আছে। প্রতিদিন দুইবার ইউটিউব স্ট্র্যাটেজি এবং প্রতি এক ঘণ্টা পর পর রয়টার্স ও এফএক্সস্ট্রিটের তাজা খবর ব্যাকগ্রাউন্ডে নিজে নিজেই স্টাডি হচ্ছে। আপনার ল্যাপটপ বন্ধ থাকলেও ক্লাউডে এটা সচল থাকবে।`;
         return response;
     }
 
@@ -1761,21 +1771,17 @@ ${B.macro.bearish_gold.map((d,i)=>`${i+1}. ${d}`).join('\n')}`;
     // ───────────────────────────────────────────────────────────────────────
     if (intent === 'NEWS_EVENTS') {
         response.avatarEmotion = 'ALERT';
-        response.sourcesUsed = ['ForexFactory (Doctrine)', 'Yahoo Finance News', 'Hermes Calendar Brain'];
-        const headlines = await fetchMarketNews();
+        response.sourcesUsed = ['Reuters & FXStreet (Auto News Study)', 'Yahoo Finance News', 'Hermes Calendar Brain'];
 
-        const headlineText = headlines.length > 0
-            ? headlines.map((h,i) => `  ${i+1}. [${h.source}] ${h.title}`).join('\n')
-            : '  (News fetching...)';
+        const numGold = typeof globalMarketState.yahoo.goldPrice === 'number' ? globalMarketState.yahoo.goldPrice : parseFloat(globalMarketState.yahoo.goldPrice) || 4320;
+        const numDxy = typeof globalMarketState.yahoo.dxyPrice === 'number' ? globalMarketState.yahoo.dxyPrice : parseFloat(globalMarketState.yahoo.dxyPrice) || 104.2;
 
-        response.replyBengali =
-`কমান্ডার, মার্কেট news এবং economic calendar update:
+        const synth = StudyEngine.synthesizeNewsResearchStudy(numGold, numDxy);
 
-📰 **লাইভ Gold Market News:**
-${headlineText}
+        response.replyBengali = `${synth.markdownText}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 **High Impact Events (Red Folder):**
+📅 **High Impact Events & Calendar Protection (Red Folder):**
 ${B.calendar.red_events.map((e,i) => `  ${i+1}. ${e}`).join('\n')}
 
 ⚠️ **ট্রেডিং ব্ল্যাকআউট রুল:**
@@ -1784,7 +1790,7 @@ ${B.calendar.rule}
 🟡 **Medium Impact Events:**
 ${B.calendar.amber_events.join(', ')}`;
 
-        response.voiceText = `কমান্ডার, High impact news event এর 30 মিনিট আগে এবং পরে কোনো trade entry নেওয়া যাবে না।`;
+        response.voiceText = synth.voiceText;
         return response;
     }
 

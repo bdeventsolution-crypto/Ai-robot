@@ -831,10 +831,10 @@ async function refreshStudyStatus() {
         const studyBadge = document.getElementById('study-status-badge');
 
         if (statTotal) statTotal.innerText = data.totalInsights || 0;
-        if (statYt) statYt.innerText = (data.recentVideos || []).length;
-        if (statWeb) statWeb.innerText = (data.recentArticles || []).length;
+        if (statYt) statYt.innerText = data.youtubeStudyCycles ? `${data.youtubeStudyCycles} cycles` : `${(data.recentVideos || []).length}`;
+        if (statWeb) statWeb.innerText = data.newsStudyCycles ? `${data.newsStudyCycles} cycles` : `${(data.recentArticles || []).length}`;
         if (statCycle) statCycle.innerText = data.studyCycles || 0;
-        if (studyBadge) studyBadge.innerText = data.isStudying ? "STUDYING NOW..." : `STUDY CYCLES: #${data.studyCycles}`;
+        if (studyBadge) studyBadge.innerText = data.isStudying ? "STUDYING NOW..." : `AUTO: 1H NEWS | 2X YT (#${data.studyCycles})`;
 
         if (ticker && data.recentInsights && data.recentInsights.length > 0) {
             const ins = data.recentInsights[0];

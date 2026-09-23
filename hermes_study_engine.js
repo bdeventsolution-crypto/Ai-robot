@@ -1,7 +1,8 @@
 // ╔══════════════════════════════════════════════════════════════════════════════╗
-// ║   HERMES AI — AUTONOMOUS YOUTUBE & WEB SELF-STUDY ENGINE v5.0              ║
+// ║   HERMES AI — AUTONOMOUS MULTI-TIER SELF-STUDY & RESEARCH ENGINE v6.0       ║
 // ║   Commander: Omar Sharif Shuvo | Co-Pilot: Arham                           ║
-// ║   Live YouTube Crawler + FXStreet + Yahoo RSS + Investing.com              ║
+// ║   • News Research: Auto every 4 Hours (Reuters, FXStreet, Yahoo, Investing)║
+// ║   • Strategy & YouTube: Auto 2x Daily (Every 12 Hours)                     ║
 // ╚══════════════════════════════════════════════════════════════════════════════╝
 
 const https = require('https');
@@ -9,8 +10,11 @@ const http  = require('http');
 const fs    = require('fs');
 const path  = require('path');
 
-const BRAIN_FILE  = path.join(__dirname, 'hermes_learned_brain.json');
-const STUDY_INTERVAL_MS = 15 * 60 * 1000; // Auto-runs every 15 minutes
+const BRAIN_FILE = path.join(__dirname, 'hermes_learned_brain.json');
+
+// SCHEDULE CONFIGURATION (As directed by Commander Omar)
+const NEWS_INTERVAL_MS    = 1 * 60 * 60 * 1000;   // Every 1 hour (Auto News Research)
+const YOUTUBE_INTERVAL_MS = 12 * 60 * 60 * 1000;  // Twice a day / Every 12 hours (YouTube Deep Research)
 
 // ──────────────────────────────────────────────────────────────────────────────
 // ROBUST HTTP/HTTPS FETCHER
@@ -23,7 +27,7 @@ function fetch(urlStr, headers = {}) {
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
             'Accept-Language': 'en-US,en;q=0.9'
         };
-        const req = lib.get(urlStr, { headers: { ...defaultHeaders, ...headers }, timeout: 12000 }, res => {
+        const req = lib.get(urlStr, { headers: { ...defaultHeaders, ...headers }, timeout: 14000 }, res => {
             let data = '';
             if ([301, 302, 307, 308].includes(res.statusCode) && res.headers.location) {
                 return fetch(res.headers.location, headers).then(resolve).catch(reject);
@@ -37,7 +41,77 @@ function fetch(urlStr, headers = {}) {
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 1. YOUTUBE CRAWLER & STUDY ENGINE
+// 1. FINANCIAL WEB NEWS & RSS SOURCES (Every 4 Hours)
+// ──────────────────────────────────────────────────────────────────────────────
+const NEWS_FEEDS = [
+    { 
+        name: 'Reuters & FXStreet (Google News)', 
+        url: 'https://news.google.com/rss/search?q=gold+price+XAUUSD+reuters+OR+fxstreet&hl=en-US&gl=US&ceid=US:en' 
+    },
+    { 
+        name: 'FXStreet Live Gold & FX', 
+        url: 'https://www.fxstreet.com/rss/news' 
+    },
+    { 
+        name: 'Yahoo Finance Gold (GC=F)', 
+        url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=GC=F' 
+    },
+    { 
+        name: 'Yahoo Finance DXY (DX-Y.NYB)', 
+        url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=DX-Y.NYB' 
+    },
+    { 
+        name: 'Investing.com Global Markets', 
+        url: 'https://www.investing.com/rss/news_1.rss' 
+    }
+];
+
+async function studyWebNewsFeeds() {
+    const articles = [];
+    for (const feed of NEWS_FEEDS) {
+        try {
+            const xml = await fetch(feed.url);
+            const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
+            for (const it of items.slice(0, 12)) {
+                const titleMatch = it[1].match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/);
+                const descMatch  = it[1].match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/);
+                const pubDateMatch = it[1].match(/<pubDate>(.*?)<\/pubDate>/);
+                const linkMatch = it[1].match(/<link>(.*?)<\/link>/);
+
+                let title = titleMatch ? (titleMatch[1] || titleMatch[2]).replace(/&lt;.*?&gt;/g, '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim() : '';
+                let desc  = descMatch ? (descMatch[1] || descMatch[2]).replace(/&lt;.*?&gt;/g, '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim() : '';
+                const date  = pubDateMatch ? pubDateMatch[1] : new Date().toISOString();
+                const link  = linkMatch ? linkMatch[1] : '';
+
+                if (title && (
+                    title.toLowerCase().includes('gold') || 
+                    title.toLowerCase().includes('dollar') || 
+                    title.toLowerCase().includes('dxy') || 
+                    title.toLowerCase().includes('fed') || 
+                    title.toLowerCase().includes('xau') ||
+                    title.toLowerCase().includes('rate') ||
+                    title.toLowerCase().includes('inflation') ||
+                    title.toLowerCase().includes('central bank') ||
+                    title.toLowerCase().includes('treasury')
+                )) {
+                    articles.push({
+                        title,
+                        desc,
+                        date,
+                        link,
+                        source: feed.name
+                    });
+                }
+            }
+        } catch(e) {
+            console.error(`[NEWS STUDY 🌐] Error fetching ${feed.name}:`, e.message);
+        }
+    }
+    return articles;
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 2. YOUTUBE STRATEGY CRAWLER & STUDY ENGINE (2x Daily / 12 Hours)
 // ──────────────────────────────────────────────────────────────────────────────
 const YOUTUBE_SEARCH_TOPICS = [
     'Gold XAUUSD SMC Liquidity Wyckoff Trading',
@@ -45,7 +119,8 @@ const YOUTUBE_SEARCH_TOPICS = [
     'XAUUSD Order Flow CVD Fair Value Gap Strategy',
     'DXY Dollar Index Gold Correlation Setup',
     'Gold Scalping Strategy M15 Liquidity Sweep',
-    'Smart Money Concepts Gold Supply Demand'
+    'Smart Money Concepts Gold Supply Demand',
+    'Asian Session Range Sweep London Expansion Gold'
 ];
 
 async function studyYouTubeTopic(topic) {
@@ -82,75 +157,29 @@ async function studyYouTubeTopic(topic) {
         }
         return videos;
     } catch(e) {
-        console.error(`[STUDY 📺] YouTube search error on "${topic}":`, e.message);
+        console.error(`[YOUTUBE STUDY 📺] Search error on "${topic}":`, e.message);
         return [];
     }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 2. FINANCIAL WEB NEWS & RSS STUDY ENGINE
-// ──────────────────────────────────────────────────────────────────────────────
-const RSS_FEEDS = [
-    { name: 'FXStreet Live Gold & FX', url: 'https://www.fxstreet.com/rss/news' },
-    { name: 'Yahoo Finance Gold (GC=F)', url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=GC=F' },
-    { name: 'Yahoo Finance DXY (DX-Y.NYB)', url: 'https://feeds.finance.yahoo.com/rss/2.0/headline?s=DX-Y.NYB' },
-    { name: 'Investing.com Global Markets', url: 'https://www.investing.com/rss/news_1.rss' }
-];
-
-async function studyWebFeeds() {
-    const articles = [];
-    for (const feed of RSS_FEEDS) {
-        try {
-            const xml = await fetch(feed.url);
-            const items = [...xml.matchAll(/<item>([\s\S]*?)<\/item>/gi)];
-            for (const it of items.slice(0, 10)) {
-                const titleMatch = it[1].match(/<title><!\[CDATA\[(.*?)\]\]><\/title>|<title>(.*?)<\/title>/);
-                const descMatch = it[1].match(/<description><!\[CDATA\[(.*?)\]\]><\/description>|<description>(.*?)<\/description>/);
-                const pubDateMatch = it[1].match(/<pubDate>(.*?)<\/pubDate>/);
-
-                const title = titleMatch ? (titleMatch[1] || titleMatch[2]).trim() : '';
-                const desc = descMatch ? (descMatch[1] || descMatch[2]).replace(/<[^>]+>/g, '').trim() : '';
-                const date = pubDateMatch ? pubDateMatch[1] : new Date().toISOString();
-
-                if (title && (title.toLowerCase().includes('gold') || 
-                              title.toLowerCase().includes('dollar') || 
-                              title.toLowerCase().includes('fed') || 
-                              title.toLowerCase().includes('xau') ||
-                              title.toLowerCase().includes('pmi') ||
-                              title.toLowerCase().includes('rate'))) {
-                    articles.push({
-                        title,
-                        desc,
-                        date,
-                        source: feed.name
-                    });
-                }
-            }
-        } catch(e) {
-            console.error(`[STUDY 🌐] Error fetching ${feed.name}:`, e.message);
-        }
-    }
-    return articles;
-}
-
-// ──────────────────────────────────────────────────────────────────────────────
-// 3. INSIGHT EXTRACTION & SYNTHESIS
+// 3. INSIGHT EXTRACTION & INSTITUTIONAL THEME MAPPING
 // ──────────────────────────────────────────────────────────────────────────────
 function extractTradingInsights(items) {
     const insights = [];
-    const keywords = ['gold', 'xau', 'dollar', 'dxy', 'fed', 'rate', 'support', 'resistance', 'liquidity', 'smc', 'wyckoff', 'sweep', 'bullish', 'bearish', 'pmi', 'inflation'];
+    const keywords = ['gold', 'xau', 'dollar', 'dxy', 'fed', 'rate', 'support', 'resistance', 'liquidity', 'smc', 'wyckoff', 'sweep', 'bullish', 'bearish', 'pmi', 'inflation', 'powell', 'trump'];
     
     for (const item of items) {
         const text = `${item.title}. ${item.desc || ''}`;
         const lower = text.toLowerCase();
         const matched = keywords.filter(k => lower.includes(k));
         
-        if (matched.length >= 2) {
+        if (matched.length >= 1) {
             insights.push({
                 text: item.title,
-                details: item.desc ? item.desc.slice(0, 200) : '',
-                source: item.source || item.channel || 'Web Intelligence',
-                url: item.url || '',
+                details: item.desc ? item.desc.slice(0, 240) : '',
+                source: item.source || item.channel || 'Market Intelligence',
+                url: item.url || item.link || '',
                 keywords: matched,
                 timestamp: new Date().toISOString()
             });
@@ -171,7 +200,13 @@ function loadBrain() {
                 studiedVideos: parsed.studiedVideos || [],
                 studiedArticles: parsed.studiedArticles || [],
                 studyCycles: parsed.studyCycles || 0,
-                lastStudyTime: parsed.lastStudyTime || parsed.lastStudy || null
+                newsStudyCycles: parsed.newsStudyCycles || parsed.studyCycles || 0,
+                youtubeStudyCycles: parsed.youtubeStudyCycles || 0,
+                lastStudyTime: parsed.lastStudyTime || parsed.lastStudy || null,
+                lastNewsStudyTime: parsed.lastNewsStudyTime || parsed.lastStudyTime || null,
+                lastYouTubeStudyTime: parsed.lastYouTubeStudyTime || null,
+                nextNewsStudyTime: parsed.nextNewsStudyTime || null,
+                nextYouTubeStudyTime: parsed.nextYouTubeStudyTime || null
             };
         }
     } catch(e) {}
@@ -180,7 +215,13 @@ function loadBrain() {
         studiedVideos: [],
         studiedArticles: [],
         studyCycles: 0,
-        lastStudyTime: null
+        newsStudyCycles: 0,
+        youtubeStudyCycles: 0,
+        lastStudyTime: null,
+        lastNewsStudyTime: null,
+        lastYouTubeStudyTime: null,
+        nextNewsStudyTime: null,
+        nextYouTubeStudyTime: null
     };
 }
 
@@ -195,41 +236,29 @@ function saveBrain(brain) {
 let brainData = loadBrain();
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 5. MASTER STUDY RUNNER
+// 5. AUTONOMOUS 4-HOUR NEWS STUDY CYCLE
 // ──────────────────────────────────────────────────────────────────────────────
-let isRunning = false;
+let isNewsStudying = false;
 
-async function runMasterStudyCycle() {
-    if (isRunning) return { status: 'already_running' };
-    isRunning = true;
-    const startTime = new Date();
-    console.log(`\n🎓 [HERMES STUDY ENGINE] Cycle #${(brainData.studyCycles || 0) + 1} initiated at ${startTime.toISOString()}`);
+async function runNewsStudyCycle() {
+    if (isNewsStudying) return { status: 'already_running' };
+    isNewsStudying = true;
+    const now = new Date();
+    console.log(`\n📰 [HERMES AUTO NEWS STUDY] Cycle #${(brainData.newsStudyCycles || 0) + 1} at ${now.toISOString()}`);
+    console.log(`   Sources: Reuters & FXStreet (Google RSS) + FXStreet + Yahoo Gold/DXY + Investing.com`);
 
     try {
         if (!brainData.learnedInsights) brainData.learnedInsights = [];
-        if (!brainData.studiedVideos) brainData.studiedVideos = [];
         if (!brainData.studiedArticles) brainData.studiedArticles = [];
 
-        // Step 1: Study YouTube
-        const ytTopic = YOUTUBE_SEARCH_TOPICS[Math.floor(Math.random() * YOUTUBE_SEARCH_TOPICS.length)];
-        console.log(`[STUDY 📺] Scraping YouTube for: "${ytTopic}"...`);
-        const ytVideos = await studyYouTubeTopic(ytTopic);
-        console.log(`[STUDY 📺] Found ${ytVideos.length} trading videos from YouTube.`);
+        const webArticles = await studyWebNewsFeeds();
+        console.log(`[NEWS STUDY 🌐] Successfully scraped ${webArticles.length} live financial news items.`);
 
-        // Step 2: Study Web RSS
-        console.log(`[STUDY 🌐] Scraping FXStreet, Yahoo Finance & Investing.com RSS...`);
-        const webArticles = await studyWebFeeds();
-        console.log(`[STUDY 🌐] Found ${webArticles.length} relevant Gold & Macro news articles.`);
-
-        // Step 3: Extract insights
-        const ytInsights = extractTradingInsights(ytVideos);
-        const webInsights = extractTradingInsights(webArticles);
-        const allNewInsights = [...ytInsights, ...webInsights];
-
-        // Deduplicate insights
+        const newsInsights = extractTradingInsights(webArticles);
         const existingTexts = new Set(brainData.learnedInsights.map(i => (i.text || '').toLowerCase()));
         let addedCount = 0;
-        for (const ins of allNewInsights) {
+
+        for (const ins of newsInsights) {
             if (!existingTexts.has((ins.text || '').toLowerCase())) {
                 existingTexts.add((ins.text || '').toLowerCase());
                 brainData.learnedInsights.unshift(ins);
@@ -237,39 +266,190 @@ async function runMasterStudyCycle() {
             }
         }
 
-        // Keep maximum 400 top insights in memory
-        if (brainData.learnedInsights.length > 400) {
-            brainData.learnedInsights = brainData.learnedInsights.slice(0, 400);
+        // Keep latest 50 studied articles and up to 500 insights
+        brainData.studiedArticles = webArticles.slice(0, 30);
+        if (brainData.learnedInsights.length > 500) {
+            brainData.learnedInsights = brainData.learnedInsights.slice(0, 500);
         }
 
-        // Store latest studied videos & articles
-        brainData.studiedVideos = ytVideos.slice(0, 8);
-        brainData.studiedArticles = webArticles.slice(0, 10);
-        brainData.studyCycles++;
-        brainData.lastStudyTime = startTime.toISOString();
+        brainData.newsStudyCycles = (brainData.newsStudyCycles || 0) + 1;
+        brainData.studyCycles = (brainData.studyCycles || 0) + 1;
+        brainData.lastNewsStudyTime = now.toISOString();
+        brainData.lastStudyTime = now.toISOString();
+        brainData.nextNewsStudyTime = new Date(now.getTime() + NEWS_INTERVAL_MS).toISOString();
 
         saveBrain(brainData);
-        console.log(`🎓 [HERMES STUDY ✅] Completed! Added ${addedCount} new insights. Total in Brain: ${brainData.learnedInsights.length}\n`);
-
-        isRunning = false;
-        return {
-            status: 'success',
-            addedInsights: addedCount,
-            totalInsights: brainData.learnedInsights.length,
-            youtubeVideos: ytVideos.length,
-            webArticles: webArticles.length,
-            studyCycles: brainData.studyCycles
-        };
+        console.log(`📰 [HERMES NEWS STUDY ✅] Completed! Added ${addedCount} insights. Next scheduled in 1 hour.`);
+        isNewsStudying = false;
+        return { status: 'success', articles: webArticles.length, added: addedCount };
     } catch(err) {
-        console.error('[STUDY ❌] Master cycle failed:', err.message);
-        isRunning = false;
+        console.error('[NEWS STUDY ❌] Cycle failed:', err.message);
+        isNewsStudying = false;
         return { status: 'error', message: err.message };
     }
 }
 
 // ──────────────────────────────────────────────────────────────────────────────
-// 6. SEARCH RELEVANT KNOWLEDGE FOR USER QUERIES
+// 6. AUTONOMOUS 2x DAILY YOUTUBE & STRATEGY STUDY CYCLE (Every 12 Hours)
 // ──────────────────────────────────────────────────────────────────────────────
+let isYouTubeStudying = false;
+
+async function runYouTubeStudyCycle() {
+    if (isYouTubeStudying) return { status: 'already_running' };
+    isYouTubeStudying = true;
+    const now = new Date();
+    console.log(`\n📺 [HERMES AUTO YOUTUBE STUDY] Cycle #${(brainData.youtubeStudyCycles || 0) + 1} at ${now.toISOString()}`);
+    console.log(`   Schedule: 2x Daily (Every 12 Hours) Deep Quant & SMC Strategy Harvesting`);
+
+    try {
+        if (!brainData.learnedInsights) brainData.learnedInsights = [];
+        if (!brainData.studiedVideos) brainData.studiedVideos = [];
+
+        // Pick 2 random topics per session
+        const topic1 = YOUTUBE_SEARCH_TOPICS[Math.floor(Math.random() * YOUTUBE_SEARCH_TOPICS.length)];
+        const topic2 = YOUTUBE_SEARCH_TOPICS[Math.floor(Math.random() * YOUTUBE_SEARCH_TOPICS.length)];
+        const topics = topic1 === topic2 ? [topic1] : [topic1, topic2];
+
+        let allVideos = [];
+        for (const t of topics) {
+            console.log(`[YOUTUBE STUDY 📺] Crawling: "${t}"...`);
+            const vids = await studyYouTubeTopic(t);
+            allVideos = allVideos.concat(vids);
+        }
+
+        console.log(`[YOUTUBE STUDY 📺] Harvested ${allVideos.length} deep strategy videos.`);
+        const ytInsights = extractTradingInsights(allVideos);
+        const existingTexts = new Set(brainData.learnedInsights.map(i => (i.text || '').toLowerCase()));
+        let addedCount = 0;
+
+        for (const ins of ytInsights) {
+            if (!existingTexts.has((ins.text || '').toLowerCase())) {
+                existingTexts.add((ins.text || '').toLowerCase());
+                brainData.learnedInsights.unshift(ins);
+                addedCount++;
+            }
+        }
+
+        brainData.studiedVideos = allVideos.slice(0, 15);
+        brainData.youtubeStudyCycles = (brainData.youtubeStudyCycles || 0) + 1;
+        brainData.lastYouTubeStudyTime = now.toISOString();
+        brainData.nextYouTubeStudyTime = new Date(now.getTime() + YOUTUBE_INTERVAL_MS).toISOString();
+
+        saveBrain(brainData);
+        console.log(`📺 [HERMES YOUTUBE STUDY ✅] Completed! Next scheduled in 12 hours.`);
+        isYouTubeStudying = false;
+        return { status: 'success', videos: allVideos.length, added: addedCount };
+    } catch(err) {
+        console.error('[YOUTUBE STUDY ❌] Cycle failed:', err.message);
+        isYouTubeStudying = false;
+        return { status: 'error', message: err.message };
+    }
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 7. COMPREHENSIVE NEWS & MARKET STUDY SYNTHESIS (FOR COMMANDER OMAR)
+// ──────────────────────────────────────────────────────────────────────────────
+function synthesizeNewsResearchStudy(goldPrice = 4320, dxyPrice = 104.2) {
+    const articles = brainData.studiedArticles || [];
+    
+    // Categorize articles
+    const fedArticles = [];
+    const fxStreetGold = [];
+    const dollarArticles = [];
+    const generalMarket = [];
+
+    for (const a of articles) {
+        const text = `${a.title} ${a.desc || ''}`.toLowerCase();
+        if (text.includes('fed') || text.includes('rate') || text.includes('powell') || text.includes('inflation')) {
+            fedArticles.push(a);
+        } else if (text.includes('gold') || text.includes('xau') || text.includes('bullion')) {
+            fxStreetGold.push(a);
+        } else if (text.includes('dollar') || text.includes('dxy') || text.includes('greenback')) {
+            dollarArticles.push(a);
+        } else {
+            generalMarket.push(a);
+        }
+    }
+
+    // Determine Institutional Sentiment
+    let hawkishCount = 0;
+    let dovishCount = 0;
+    let goldBullishCount = 0;
+    let goldBearishCount = 0;
+
+    for (const a of articles) {
+        const t = `${a.title} ${a.desc || ''}`.toLowerCase();
+        if (t.includes('hawk') || t.includes('rate hike') || t.includes('resilient') || t.includes('yields surge')) hawkishCount++;
+        if (t.includes('dove') || t.includes('cut') || t.includes('easing') || t.includes('cooling')) dovishCount++;
+        if (t.includes('rally') || t.includes('bullish') || t.includes('record') || t.includes('gain') || t.includes('target')) goldBullishCount++;
+        if (t.includes('drop') || t.includes('bearish') || t.includes('slip') || t.includes('decline') || t.includes('drifts toward')) goldBearishCount++;
+    }
+
+    const fedBias = dovishCount > hawkishCount ? 'Dovish (সুদ কমানোর আশা - গোল্ডের পক্ষে)' : 'Hawkish/Sticky (উচ্চ সুদের হার - সাময়িক চাপ)';
+    const macroGoldBias = goldBullishCount >= goldBearishCount ? 'Bullish Accumulation / Dip Buying' : 'Bearish Correction / Trap Zone';
+
+    // Format top 3-4 actual headline summaries
+    const sampleHighlights = articles.slice(0, 4).map((a, i) => {
+        let cleanSnippet = (a.desc || '').replace(/&lt;.*?&gt;/g, '').replace(/<[^>]+>/g, '').replace(/&quot;/g, '"').replace(/&#39;/g, "'").replace(/&amp;/g, '&').trim();
+        const descSnip = cleanSnippet ? `\n     ↳ _${cleanSnippet.slice(0, 130)}..._` : '';
+        return `  ${i+1}. **[${a.source}]** ${a.title}${descSnip}`;
+    }).join('\n\n');
+
+    const voiceSummary = `কমান্ডার, রয়টার্স, এফএক্সস্ট্রিট এবং ইয়াহু ফাইনান্সের তাজা নিউজ স্টাডি সম্পন্ন হয়েছে। ফেড সেন্টিমেন্ট বর্তমানে ${dovishCount > hawkishCount ? 'ডোভিশ' : 'হকিশ'} এবং গোল্ডের ম্যাক্রো বায়াস ${goldBullishCount >= goldBearishCount ? 'বুলিশ' : 'কারেকশন মোডে'} রয়েছে। রয়টার্স ও এফএক্সস্ট্রিটের তাজা বুলেটিন স্ক্রিনে লোড করা হয়েছে।`;
+
+    const fullMarkdown = `### 📊 [রয়টার্স ও এফএক্সস্ট্রিট লাইভ নিউজ রিসার্চ ও ম্যাক্রো স্টাডি রিপোর্ট]
+*স্বয়ংক্রিয় স্টাডি সূচি: প্রতি ১ ঘণ্টা পর পর তাজা নিউজ রিসার্চ | দিনে ২ বার ইউটিউব কোয়ান্ট অ্যানালিসিস*
+
+**১. শীর্ষ সংবাদ ও প্রাতিষ্ঠানিক বুলেটিন (রয়টার্স, এফএক্সস্ট্রিট ও ইয়াহু ফাইনান্স):**
+${sampleHighlights || '  • রয়টার্স ও এফএক্সস্ট্রিট থেকে লাইভ ডেটা প্রসেসিং চলছে...'}
+
+**২. ম্যাক্রো ইকোনমিক ও ফেড ইন্টারেস্ট রেট স্টাডি:**
+- **ফেড পলিসি সেন্টিমেন্ট:** ${fedBias}
+- **ইউএস ডলার ইনডেক্স (DXY):** ${dxyPrice ? dxyPrice.toFixed(2) : '104.20'} — ডলারের সাথে গোল্ডের বিপরীতমুখী কোরিলেশন ট্র্যাক করা হচ্ছে।
+- **গোল্ড প্রাতিষ্ঠানিক সেন্টিমেন্ট:** ${macroGoldBias}
+
+**৩. চার্ট ও টেকনিক্যাল কনফ্লুয়েন্স সংযোগ:**
+- বর্তমান গোল্ড প্রাইস লেভেলের কাছে রিটেইল ব্রেকআউট ফাঁদ তৈরি হচ্ছে কি না তা ১২-বার লিকুইডিটি সুইপ ও CVD ডেল্টা দিয়ে নজর রাখা হচ্ছে।
+- হাই-ইমপ্যাক্ট নিউজ রিলিজের ৩০ মিনিট আগে ও পরে নো-ট্রেড ব্ল্যাকআউট জোন মেনে চলুন।
+
+**৪. কমান্ডারের ট্রেডিং ডিরেক্টিভ:**
+- খবরের সাময়িক স্পাইকে FOMO বাই/সেল নিষিদ্ধ (২.৫x ATR ফিল্টার সক্রিয়)।
+- শুধুমাত্র ডিসকাউন্ট জোনে স্প্রিং অথবা প্রিমিয়ামে UTAD সুইপ নিশ্চিত হলে তবেই এন্ট্রি।`;
+
+    return {
+        voiceText: voiceSummary,
+        markdownText: fullMarkdown,
+        fedBias,
+        macroGoldBias,
+        articlesCount: articles.length,
+        lastStudyTime: brainData.lastNewsStudyTime
+    };
+}
+
+// ──────────────────────────────────────────────────────────────────────────────
+// 8. MASTER DAEMON & EXPORTS
+// ──────────────────────────────────────────────────────────────────────────────
+function startAllAutonomousDaemons() {
+    console.log(`\n================================================================`);
+    console.log(`🚀 [HERMES AUTONOMOUS AI ENGINE] Multi-Tier Schedule Armed:`);
+    console.log(`   1. 📰 NEWS RESEARCH: Every 1 Hour (Reuters, FXStreet, Yahoo, Investing)`);
+    console.log(`   2. 📺 YOUTUBE & STRATEGY: Twice Daily (Every 12 Hours)`);
+    console.log(`================================================================\n`);
+
+    // Immediate initial study run on boot
+    setTimeout(() => {
+        runNewsStudyCycle();
+    }, 4000);
+
+    setTimeout(() => {
+        runYouTubeStudyCycle();
+    }, 12000);
+
+    // Recurring Timers
+    setInterval(runNewsStudyCycle, NEWS_INTERVAL_MS);
+    setInterval(runYouTubeStudyCycle, YOUTUBE_INTERVAL_MS);
+}
+
 function searchBrainKnowledge(query, limit = 4) {
     const q = (query || '').toLowerCase();
     const insights = brainData.learnedInsights || [];
@@ -290,21 +470,33 @@ function searchBrainKnowledge(query, limit = 4) {
 }
 
 module.exports = {
-    startStudyDaemon: () => {
-        console.log(`\n🎓 [HERMES STUDY ENGINE] Auto-Study Daemon Armed (Every 15 mins)`);
-        console.log(`📚 Sources: YouTube Search + FXStreet Live + Yahoo Finance Gold/DXY + Investing.com`);
-        setTimeout(runMasterStudyCycle, 3000);
-        setInterval(runMasterStudyCycle, STUDY_INTERVAL_MS);
+    startStudyDaemon: startAllAutonomousDaemons,
+    runNewsStudyNow: runNewsStudyCycle,
+    runYouTubeStudyNow: runYouTubeStudyCycle,
+    runStudyNow: async () => {
+        const r1 = await runNewsStudyCycle();
+        const r2 = await runYouTubeStudyCycle();
+        return { news: r1, youtube: r2 };
     },
-    runStudyNow: runMasterStudyCycle,
+    synthesizeNewsResearchStudy,
     getStudyStatus: () => ({
-        isStudying: isRunning,
+        isNewsStudying,
+        isYouTubeStudying,
+        isStudying: isNewsStudying || isYouTubeStudying,
+        newsSchedule: 'Every 1 Hour (Auto)',
+        youtubeSchedule: 'Twice Daily (Every 12 Hours)',
         lastStudyTime: brainData.lastStudyTime,
-        totalInsights: (brainData.learnedInsights || []).length,
+        lastNewsStudyTime: brainData.lastNewsStudyTime,
+        lastYouTubeStudyTime: brainData.lastYouTubeStudyTime,
+        nextNewsStudyTime: brainData.nextNewsStudyTime,
+        nextYouTubeStudyTime: brainData.nextYouTubeStudyTime,
+        newsStudyCycles: brainData.newsStudyCycles || 0,
+        youtubeStudyCycles: brainData.youtubeStudyCycles || 0,
         studyCycles: brainData.studyCycles || 0,
-        recentVideos: (brainData.studiedVideos || []).slice(0, 4),
-        recentArticles: (brainData.studiedArticles || []).slice(0, 4),
-        recentInsights: (brainData.learnedInsights || []).slice(0, 6)
+        totalInsights: (brainData.learnedInsights || []).length,
+        recentVideos: (brainData.studiedVideos || []).slice(0, 6),
+        recentArticles: (brainData.studiedArticles || []).slice(0, 10),
+        recentInsights: (brainData.learnedInsights || []).slice(0, 8)
     }),
     getAllInsights: () => (brainData.learnedInsights || []),
     searchBrainKnowledge
