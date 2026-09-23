@@ -1,0 +1,24 @@
+{
+  "name": "hermes-ai-robot-copilot",
+  "version": "5.0.0",
+  "description": "Hermes AI Institutional Trading Co-Pilot & Web Dashboard for Commander Omar Sharif Shuvo",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js"
+  },
+  "keywords": [
+    "trading",
+    "gold",
+    "xauusd",
+    "smc",
+    "wyckoff",
+    "ai-copilot",
+    "yahoo-finance"
+  ],
+  "author": "Antigravity & Hermes AI",
+  "license": "ISC",
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: hermes-ai-robot-copilot
+    env: node
+    plan: free
+    buildCommand: "echo 'No build required - zero dependencies'"
+    startCommand: "node server.js"
+    envVars:
+      - key: NODE_VERSION
+        value: 20
