@@ -445,7 +445,7 @@ if (langTrigger) {
             voiceLanguage = 'bn-BD';
             langTrigger.innerText = 'BN';
             langTrigger.title = 'Current: Bengali (বাংলা). Click for English / Banglish';
-            userInput.placeholder = "মিয়াভাই, বাংলায় কথা বলুন বা প্রশ্ন টাইপ করুন...";
+            userInput.placeholder = "কমান্ডার, বাংলায় কথা বলুন বা প্রশ্ন টাইপ করুন...";
         }
         if (recognition) recognition.lang = voiceLanguage;
         statusText.innerText = `VOICE LANGUAGE: ${voiceLanguage === 'bn-BD' ? 'BENGALI (বাংলা)' : 'ENGLISH / BANGLISH'}`;
@@ -453,7 +453,7 @@ if (langTrigger) {
 }
 
 // ===================================================================
-// 5. CHAT ENGINE & API DISPATCH
+// 5. CHAT ENGINE & API DISPATCH (WITH MOBILE AUTO-SCROLL & LOADING)
 // ===================================================================
 async function handleSendMessage() {
     const text = userInput.value.trim();
@@ -466,6 +466,30 @@ async function handleSendMessage() {
     setAvatarEmotion("ANALYZING");
     statusText.innerText = "QUANTITATIVE REASONING IN PROGRESS...";
 
+    // Show instant Loading Indicator card
+    const loadingId = 'loading-' + Date.now();
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = "msg hermes-msg";
+    loadingDiv.id = loadingId;
+    loadingDiv.innerHTML = `
+        <div class="msg-header">
+            <span class="sender-name">🤖 HERMES AI CO-PILOT</span>
+            <span class="time-stamp">ANALYZING...</span>
+        </div>
+        <div class="msg-body" style="color:#00f0ff; display:flex; align-items:center; gap:8px;">
+            <span>⚡ কমান্ডার, লাইভ মার্কেট ডেটা ও M15 সাইকেল অ্যানালাইসিস করছি...</span>
+            <span style="display:inline-block; animation:spin 1s linear infinite;">⏳</span>
+        </div>
+    `;
+    chatStream.appendChild(loadingDiv);
+    chatStream.scrollTop = chatStream.scrollHeight;
+
+    // Auto-scroll screen to chat on mobile
+    const chatCard = document.querySelector('.chat-card');
+    if (chatCard && window.innerWidth <= 768) {
+        chatCard.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+
     try {
         const response = await fetch('/api/ask', {
             method: 'POST',
@@ -474,8 +498,29 @@ async function handleSendMessage() {
         });
         const data = await response.json();
 
-        // Append Hermes Reply
-        appendMessageCard("🤖 HERMES AI CO-PILOT", data.replyBengali, "hermes-msg");
+        // Replace loading card with actual reply
+        const currentLoading = document.getElementById(loadingId);
+        if (currentLoading) {
+            currentLoading.innerHTML = `
+                <div class="msg-header">
+                    <span class="sender-name">🤖 HERMES AI CO-PILOT</span>
+                    <span class="time-stamp">${new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+                    <button class="msg-speak-btn" title="কথা শুনুন">🔊 কথা শুনুন</button>
+                </div>
+                <div class="msg-body">${(data.replyBengali || '').replace(/\n/g, '<br>')}</div>
+            `;
+            const speakBtn = currentLoading.querySelector('.msg-speak-btn');
+            if (speakBtn) {
+                speakBtn.addEventListener('click', () => {
+                    unlockMobileAudio();
+                    speakHermesVoice(data.replyBengali);
+                });
+            }
+        } else {
+            appendMessageCard("🤖 HERMES AI CO-PILOT", data.replyBengali, "hermes-msg");
+        }
+
+        chatStream.scrollTop = chatStream.scrollHeight;
 
         // Update Emotion & Voice
         setAvatarEmotion(data.avatarEmotion || "TALKING");
@@ -486,10 +531,19 @@ async function handleSendMessage() {
         }
 
     } catch (err) {
-        appendMessageCard("🤖 HERMES AI CO-PILOT", "কমান্ডার, ক্লাউড কানেকশনে সামান্য সময় লাগছে। অনুগ্রহ করে আরেকবার ক্লিক করুন।", "hermes-msg");
+        const currentLoading = document.getElementById(loadingId);
+        if (currentLoading) {
+            currentLoading.innerHTML = `
+                <div class="msg-header"><span class="sender-name">🤖 HERMES AI CO-PILOT</span></div>
+                <div class="msg-body" style="color:#ff3366;">কমান্ডার, ক্লাউড কানেকশনে সামান্য সময় লাগছে। অনুগ্রহ করে আরেকবার ক্লিক করুন।</div>
+            `;
+        } else {
+            appendMessageCard("🤖 HERMES AI CO-PILOT", "কমান্ডার, ক্লাউড কানেকশনে সামান্য সময় লাগছে। অনুগ্রহ করে আরেকবার ক্লিক করুন।", "hermes-msg");
+        }
         setAvatarEmotion("ALERT");
     }
 }
+
 
 sendTrigger.addEventListener('click', () => {
     unlockMobileAudio();
@@ -780,5 +834,20 @@ if (scrollBottomBtn) {
         }
     });
 }
+
+// Global Reload Button Trigger
+const btnGlobalReload = document.getElementById('btn-global-reload');
+if (btnGlobalReload) {
+    btnGlobalReload.addEventListener('click', async () => {
+        btnGlobalReload.innerText = '⏳ UPDATING...';
+        await refreshTelemetry();
+        await refreshStudyStatus();
+        setTimeout(() => {
+            btnGlobalReload.innerText = '✅ UPDATED';
+            setTimeout(() => { btnGlobalReload.innerText = '🔄 RELOAD'; }, 1500);
+        }, 500);
+    });
+}
+
 
 

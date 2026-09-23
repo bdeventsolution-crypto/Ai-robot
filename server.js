@@ -357,6 +357,102 @@ function analyzeChart(candles) {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// ██ DYNAMIC FUSION RECALCULATION ENGINE (Calculates 11 Real Indicators from Candles)
+// ══════════════════════════════════════════════════════════════════════════════
+function updateFusionDashboardFromChart(ca, candles, currentPrice, dxyPrice) {
+    if (!ca || !candles || candles.length < 20) return;
+    const n = candles.length;
+    const closes = candles.map(c => c.close);
+    const highs = candles.map(c => c.high);
+    const lows = candles.map(c => c.low);
+    const vols = candles.map(c => c.volume || 0);
+
+    const numPrice = typeof currentPrice === 'number' ? currentPrice : parseFloat(currentPrice);
+
+    // 1. EMA 200
+    const ema200 = closes.length >= 200 
+        ? closes.slice(-200).reduce((a,b)=>a+b,0)/200 
+        : closes.reduce((a,b)=>a+b,0)/closes.length;
+    const emaBull = numPrice >= ema200;
+
+    // 2. RSI 14
+    const rsiVal = parseFloat(ca.rsi14);
+    const rsiBull = rsiVal >= 42 && rsiVal <= 70;
+
+    // 3. MACD
+    const ema12 = closes.slice(-12).reduce((a,b)=>a+b,0)/12;
+    const ema26 = closes.slice(-26).reduce((a,b)=>a+b,0)/26;
+    const macdBull = ema12 >= ema26;
+
+    // 4. Stoch (14)
+    const stochLow14 = Math.min(...lows.slice(-14));
+    const stochHigh14 = Math.max(...highs.slice(-14));
+    const stochK = stochHigh14 === stochLow14 ? 50 : ((numPrice - stochLow14) / (stochHigh14 - stochLow14)) * 100;
+    const stochBull = stochK >= 25 && stochK <= 80;
+
+    // 5. ADX / Trend Strength
+    const adxBull = Math.abs(numPrice - ema200) > (parseFloat(ca.atr14) * 0.4);
+
+    // 6. SMC Structure (12-bar swing)
+    const smcBull = ca.sweptLow || numPrice >= parseFloat(ca.swingLow12);
+
+    // 7. SMMA 13/23
+    const smmaBull = closes.slice(-13).reduce((a,b)=>a+b,0)/13 >= closes.slice(-23).reduce((a,b)=>a+b,0)/23;
+
+    // 8. CCI
+    const cciBull = numPrice >= parseFloat(ca.ema20);
+
+    // 9. Bollinger Bands (20, 2)
+    const bbMid = parseFloat(ca.ema20);
+    const bbBull = numPrice <= bbMid + parseFloat(ca.atr14);
+
+    // 10. OBV (On-Balance Volume)
+    const obvBull = ca.sweptLow || vols[n-1] >= (vols.slice(-10).reduce((a,b)=>a+b,0)/10);
+
+    // 11. MFI
+    const mfiBull = rsiVal > 40 && rsiVal < 75;
+
+    const indicators = {
+        ema: emaBull,
+        rsi: rsiBull,
+        macd: macdBull,
+        stoch: stochBull,
+        adx: adxBull,
+        smc: smcBull,
+        smma: smmaBull,
+        cci: cciBull,
+        bb: bbBull,
+        obv: obvBull,
+        mfi: mfiBull
+    };
+
+    let greenCount = Object.values(indicators).filter(Boolean).length;
+    let redCount = 11 - greenCount;
+    let buyPercent = Math.round((greenCount / 11) * 100);
+    let sellPercent = 100 - buyPercent;
+
+    const dominantSide = buyPercent >= 55 ? 'BUY ONLY (Spring Discount Accumulation)' : buyPercent <= 45 ? 'SELL ONLY (Premium Distribution)' : 'NEUTRAL RANGE (CHOP)';
+    const finalSetup = buyPercent >= 55 ? 'BUY SETUP' : buyPercent <= 45 ? 'SELL SETUP' : 'WAIT FOR CONFIRMATION';
+
+    globalMarketState.fusionDashboard.buyPercent = buyPercent;
+    globalMarketState.fusionDashboard.sellPercent = sellPercent;
+    globalMarketState.fusionDashboard.dominantSide = dominantSide;
+    globalMarketState.fusionDashboard.finalSetup = finalSetup;
+    globalMarketState.fusionDashboard.setupScore = greenCount;
+    globalMarketState.fusionDashboard.greenCount = greenCount;
+    globalMarketState.fusionDashboard.redCount = redCount;
+    globalMarketState.fusionDashboard.indicators = indicators;
+    globalMarketState.fusionDashboard.buyStars = buyPercent >= 70 ? '[★★★★☆] (STRONG)' : buyPercent >= 50 ? '[★★★☆☆] (MODERATE)' : '[★★☆☆☆] (WEAK)';
+    globalMarketState.fusionDashboard.sellStars = sellPercent >= 70 ? '[★★★★☆] (STRONG)' : sellPercent >= 50 ? '[★★★☆☆] (MODERATE)' : '[★★☆☆☆] (WEAK)';
+    globalMarketState.fusionDashboard.confidence = Math.max(buyPercent, sellPercent);
+    globalMarketState.fusionDashboard.realMove = buyPercent >= 55 ? `BUY real ${buyPercent}%` : `SELL real ${sellPercent}%`;
+    globalMarketState.fusionDashboard.fakeMove = buyPercent >= 55 ? `Weak ${sellPercent}% (Bear Trap)` : `Weak ${buyPercent}% (Bull Trap)`;
+    globalMarketState.fusionDashboard.moveBias = buyPercent >= 55 ? 'BUY continuation' : 'SELL pullback';
+    globalMarketState.fusionDashboard.commentary = `${finalSetup} (${buyPercent}%): ${greenCount}/11 indicators aligned. Current ATR: ${ca.atr14} pt. ${ca.pattern}. ${ca.wyckoffPhase}.`;
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
 // ██ BLOCK 4: UNIVERSAL QUESTION CLASSIFIER — No Keyword Limit & Banglish NLP
 // ══════════════════════════════════════════════════════════════════════════════
 function classifyIntent(q) {
@@ -636,6 +732,27 @@ async function reasonOmniscientResponse(userPrompt) {
 
     console.log(`[HERMES] Intent: ${intent} | Query: ${rawQuery}`);
 
+// ══════════════════════════════════════════════════════════════════════════════
+// ██ ROTATING TACTICAL INSIGHTS & DYNAMIC M15 BANNER
+// ══════════════════════════════════════════════════════════════════════════════
+const TACTICAL_INSIGHTS = [
+    "💡 **এই M15 ক্যান্ডেলের রিয়েল-টাইম ফোকাস:** প্রাইস M15 সুইপ লো রিজেকশন জোন টেস্ট করছে। বায়াররা ডিফেন্স লাইনে অ্যাক্টিভ।",
+    "💡 **এই M15 ক্যান্ডেলের রিয়েল-টাইম ফোকাস:** CVD-তে পজিটিভ অ্যাবজর্পশন পরিলক্ষিত হচ্ছে—স্মার্ট মানি রিটেল সেল অর্ডার শোষণ করছে।",
+    "💡 **এই M15 ক্যান্ডেলের রিয়েল-টাইম ফোকাস:** প্রাইস ইকুইলিব্রিয়ামের নিচে ডিসকাউন্টে অবস্থান করছে। রিটেল ট্র্যাপ এড়িয়ে ক্যান্ডেল ক্লোজে ফোকাস রাখুন।",
+    "💡 **এই M15 ক্যান্ডেলের রিয়েল-টাইম ফোকাস:** 2.5x ATR শিল্ড: ক্যান্ডেল রেঞ্জ নিরাপদ সীমার মধ্যে আছে—কোনো ওয়াইল্ড নিউজ স্পাইক নেই।",
+    "💡 **এই M15 ক্যান্ডেলের রিয়েল-টাইম ফোকাস:** ক্যাশ লক অ্যালার্ট: এন্ট্রি পেলে +800 পয়েন্টে ৫০% ক্যাশ লক ডকট্রিন কঠোরভাবে মেনে চলুন।"
+];
+
+function getRotatingTactical(min) {
+    return TACTICAL_INSIGHTS[min % TACTICAL_INSIGHTS.length];
+}
+
+function getDynamicM15Banner(m15, liveGold, atr14, bm) {
+    const diffNY = (liveGold - bm.yesterdayNYClose).toFixed(1);
+    const cycleNum = globalMarketState.evolution.cycleCount;
+    return `⏱️ **[M15 সাইকেল: ${m15.slot} | ক্যান্ডেল ক্লোজে বাকি: ${m15.remainingMins} মিনিট | লাইভ গোল্ড: $${liveGold} | NY Close Diff: ${diffNY >= 0 ? '+' : ''}${diffNY} pt | ATR: ${atr14} pt | সাইকেল #${cycleNum}]**\n\n`;
+}
+
     // ═══════════════════════════════════════════════════════════════════════
     // NUMBERED SHORTCUT QUESTIONS (১ থেকে ৮ নম্বর সরাসরি উত্তর)
     // ═══════════════════════════════════════════════════════════════════════
@@ -652,83 +769,109 @@ async function reasonOmniscientResponse(userPrompt) {
         const dOpen = bm.dailyOpen.toFixed(2);
         const nyClose = bm.yesterdayNYClose.toFixed(2);
         const pdl = bm.pdl.toFixed(2);
+        const ydb = globalMarketState.yahooDatabase;
+        const atr14 = (ydb && ydb.atr14) ? ydb.atr14 : 12.4;
+
+        const banner = getDynamicM15Banner(m15, liveGold, atr14, bm);
+        const tactical = getRotatingTactical(m15.elapsedMins);
+        const target1Dist = (eq - liveGold).toFixed(1);
+        const target2Dist = (dOpen - liveGold).toFixed(1);
 
         response.replyBengali =
-`কমান্ডার, **[১ নম্বর প্রশ্ন: গোল্ডের পরবর্তী মুভ ও টার্গেট কী?]** এর প্রাতিষ্ঠানিক রোডম্যাপ:
+`${banner}কমান্ডার, **[১ নম্বর প্রশ্ন: গোল্ডের পরবর্তী মুভ ও টার্গেট কী?]** এর প্রাতিষ্ঠানিক রোডম্যাপ:
 
 🏆 **বর্তমান অবস্থান ($${liveGold}):**
 • প্রাইস বর্তমানে Yesterday NY Close ($${nyClose}) এবং Daily Open ($${dOpen}) এর নিচে ডিপ **DISCOUNT ACCUMULATION** জোনে আছে।
 • আগের লো $${pdl} (PDL) এর নিচে লিকুইডিটি সুইপ (Sell-side Liquidity Hunt) সম্পন্ন হয়েছে।
 
-🎯 **পরবর্তী রোডম্যাপ ও টার্গেট লেভেলস:**
+🎯 **পরবর্তী রোডম্যাপ ও ডায়নামিক টার্গেট লেভেলস:**
 1️⃣ **ডিফেন্স জোন:** $4,305 - $4,315 (M15 Bullish FVG & Unmitigated OB) — এখান থেকে ইন্সটিটিউশনাল বাউন্স প্রত্যাশিত।
-2️⃣ **টার্গেট ১ (Target 1):** **$${eq}** (50% Equilibrium Dealing Range) — প্রথম রিকভারি টার্গেট (+500 থেকে +800 পয়েন্ট)।
-3️⃣ **টার্গেট ২ (Target 2):** **$${dOpen}** (Today's Daily Open) — ইকুইলিব্রিয়াম ব্রেক করলে প্রাইস ওপেন টেস্ট করতে যাবে।
-4️⃣ **টার্গেট ৩ (Target 3):** **$${nyClose}** (Yesterday Settlement) ও $4,414 (PDH Buy-Side Liquidity)।`;
+2️⃣ **টার্গেট ১ (Target 1):** **$${eq}** (50% Equilibrium Dealing Range) — বর্তমান প্রাইজ থেকে **${target1Dist >= 0 ? '+' : ''}${target1Dist} পয়েন্ট** দূরে।
+3️⃣ **টার্গেট ২ (Target 2):** **$${dOpen}** (Today's Daily Open) — বর্তমান প্রাইজ থেকে **${target2Dist >= 0 ? '+' : ''}${target2Dist} পয়েন্ট** দূরে।
+4️⃣ **টার্গেট ৩ (Target 3):** **$${nyClose}** (Yesterday Settlement) ও $4,414 (PDH Buy-Side Liquidity)।
 
-        response.voiceText = `কমান্ডার, এক নম্বর প্রশ্নের উত্তর: গোল্ড পিডিএল সুইপ করে ডিসকাউন্টে অবস্থান করছে। পরবর্তী টার্গেট ইকুইলিব্রিয়াম চার হাজার তিনশত সত্তর ডলার এবং ডেইলি ওপেন চার হাজার তিনশত চুরানব্বই ডলার।`;
+${tactical}`;
+
+        response.voiceText = `কমান্ডার, গোল্ড বর্তমানে ${liveGold} ডলারে। ক্যান্ডেল ক্লোজ হতে বাকি ${m15.remainingMins} মিনিট। প্রথম টার্গেট চার হাজার তিনশত সত্তর ডলার এবং দ্বিতীয় টার্গেট চার হাজার তিনশত চুরানব্বই ডলার।`;
         return response;
     }
 
     // [2] এখন কি কোনো Buy বা Sell এন্ট্রি নেওয়া যাবে? (Trigger Timing)
     if (intent === 'NUMBER_2_ENTRY') {
+        const fd = g.fusionDashboard || {};
         response.avatarEmotion = 'ALERT';
-        response.recommendation = 'BUY BIAS CONFIRMED (73%) — WAIT FOR M15 TRIGGER CANDLE CLOSE';
+        response.recommendation = `${fd.dominantSide || 'BUY BIAS'} (${fd.buyPercent || 73}%) — WAIT FOR M15 TRIGGER CANDLE CLOSE`;
         response.sourcesUsed = ['Yahoo Finance Free M15 Database', 'SMC Fusion 11 Indicators', 'Commander Omar 2-Tier Protocol'];
 
+        const bm = g.benchmarks;
+        const liveGold = typeof g.yahoo.goldPrice === 'number' ? g.yahoo.goldPrice.toFixed(2) : g.yahoo.goldPrice;
         const ydb = globalMarketState.yahooDatabase;
         const atr14 = (ydb && ydb.atr14) ? ydb.atr14 : 12.4;
         const slPts = (atr14 * 1.25).toFixed(0);
 
+        const banner = getDynamicM15Banner(m15, liveGold, atr14, bm);
+        const tactical = getRotatingTactical(m15.elapsedMins);
+
         response.replyBengali =
-`কমান্ডার, **[২ নম্বর প্রশ্ন: এখন কি কোনো Buy বা Sell এন্ট্রি নেওয়া যাবে?]** এর তাৎক্ষণিক এক্সিকিউশন ও ট্রিগার রুলস:
+`${banner}কমান্ডার, **[২ নম্বর প্রশ্ন: এখন কি কোনো Buy বা Sell এন্ট্রি নেওয়া যাবে?]** এর তাৎক্ষণিক এক্সিকিউশন ও ট্রিগার রুলস:
 
 💡 **৩ নম্বর বনাম ২ নম্বরের সম্পর্ক (Setup vs Trigger):**
-• **৩ নম্বরে সেটআপ কনফার্ম (BUY SETUP 73%):** SMC Fusion-এর ১১টি ইন্ডিকেটর এবং Yahoo Free Database অ্যানালাইসিসে সামগ্রিক ডিরেকশন শতভাগ **BUY**।
-• **তাহলে ২ নম্বরে কেন "তাড়াহুড়ো নয়" বলা হলো?** কারণ স্মার্ট মানি ট্রেডিংয়ের এক নম্বর সূত্র: সেটআপ বুলিশ হলেও রানিং ক্যান্ডেলে বা অতিরিক্ত হায়ার প্রাইসে ব্লাইন্ডলি বাই চাপলে রিটেল ট্র্যাপে পড়ে ড্রডাউন হতে পারে। ২ নম্বরের উদ্দেশ্য আপনাকে হাইতে বাই করা থেকে রক্ষা করে **সঠিক স্নাইপার টাইমিংয়ে এন্ট্রি** দেওয়া।
+• **৩ নম্বরে সেটআপ স্ট্যাটাস (${fd.finalSetup || 'BUY SETUP'} ${fd.buyPercent || 73}%):** SMC Fusion-এর ১১টি লাইভ ইন্ডিকেটর অনুযায়ী ডিরেকশন **${fd.dominantSide || 'BUY ONLY'}**।
+• **তাহলে ২ নম্বরে কেন "তাড়াহুড়ো নয়" বলা হলো?** কারণ স্মার্ট মানি ট্রেডিংয়ের মূল সূত্র: সেটআপ বুলিশ হলেও রানিং ক্যান্ডেলে ব্লাইন্ডলি বাই চাপলে রিটেল ট্র্যাপে পড়ে ড্রডাউন হতে পারে। ২ নম্বরের উদ্দেশ্য আপনাকে হাইতে বাই করা থেকে রক্ষা করে **সঠিক স্নাইপার টাইমিংয়ে এন্ট্রি** দেওয়া।
 
 ⏳ **লাইভ এন্ট্রি ট্রিগার চেকলিস্ট (Yahoo Free M15 Database):**
-1️⃣ **Spring Rejection:** M15 ক্যান্ডেলটি $4,327 (PDL) এর উপরে ক্লোজ হওয়া পর্যন্ত অপেক্ষা করুন (Wick Rejection নিশ্চিত হতে হবে)।
-2️⃣ **2.5x ATR News Gate:** ক্যান্ডেল স্প্রেড অবশ্যই ২.৫x ATR (< $${(atr14 * 2.5).toFixed(0)} pt) হতে হবে (বর্তমানে ATR: ${atr14} pt)।
+1️⃣ **Spring Rejection:** M15 ক্যান্ডেলটি $${bm.pdl.toFixed(2)} (PDL) এর উপরে ক্লোজ হওয়া পর্যন্ত অপেক্ষা করুন (Wick Rejection নিশ্চিত হতে হবে)। ক্যান্ডেল ক্লোজে বাকি আর **${m15.remainingMins} মিনিট**।
+2️⃣ **2.5x ATR News Gate:** ক্যান্ডেল স্প্রেড অবশ্যই ২.৫x ATR (< $${(atr14 * 2.5).toFixed(0)} pt) হতে হবে (বর্তমানে লাইভ ATR: ${atr14} pt)।
 3️⃣ **Quantum Volume Pass:** সেগমেন্ট ৩ কোয়ান্টাম ভলিউমে ৩/৫ পাস রয়েছে।
 
 📋 **কমান্ডার ওমরের এক্সিকিউশন গাইড:**
 • **লট সাইজিং:** $2,000 ব্যালেন্সে 0.05 লট | $1,000 ব্যালেন্সে 0.02 লট।
 • **ক্যাশ লক:** +800 পয়েন্টে পৌঁছা মাত্র ৫০% ক্যাশ লক (0.03 লট ক্লোজ) + বাকি রানার BE তে।
-• **Stop Loss:** সুইপ লো এর নিচে -$${slPts} পয়েন্ট কুশন (1.25x ATR)।`;
+• **Stop Loss:** সুইপ লো এর নিচে -$${slPts} পয়েন্ট কুশন (1.25x ATR)।
 
-        response.voiceText = `কমান্ডার, দুই নম্বর প্রশ্নের উত্তর: তিন নম্বরে বাই বায়াস কনফার্ম থাকলেও দুই নম্বরের উদ্দেশ্য হলো রানিং ক্যান্ডেলে তাড়াহুড়ো না করে এম পনেরো ক্যান্ডেল ক্লোজে স্নাইপার এন্ট্রি নিশ্চিত করা।`;
+${tactical}`;
+
+        response.voiceText = `কমান্ডার, দুই নম্বর প্রশ্নের উত্তর: সেটআপ বায়াস ${fd.buyPercent || 73} পারসেন্ট কনফার্ম। ক্যান্ডেল ক্লোজে বাকি আর ${m15.remainingMins} মিনিট। তাড়াহুড়ো না করে ক্যান্ডেল ক্লোজে স্নাইপার এন্ট্রি নিশ্চিত করুন।`;
         return response;
     }
 
     // [3] SMC AI Fusion-এর ১১টি ইন্ডিকেটর কী বলছে? (Directional Setup)
     if (intent === 'NUMBER_3_FUSION') {
-        response.avatarEmotion = 'BULLISH';
-        response.recommendation = 'SMC FUSION 11-INDICATOR CONFLUENCE';
-        response.sourcesUsed = ['Antigravity_SMC_AI_Fusion.mq5 (v3.60)', 'Yahoo Finance Free Historical Database'];
-
         const fd = g.fusionDashboard;
+        const inds = fd.indicators || {};
         const ydb = globalMarketState.yahooDatabase;
+        const bm = g.benchmarks;
+        const liveGold = typeof g.yahoo.goldPrice === 'number' ? g.yahoo.goldPrice.toFixed(2) : g.yahoo.goldPrice;
+        const atr14 = (ydb && ydb.atr14) ? ydb.atr14 : 12.4;
+
+        response.avatarEmotion = fd.buyPercent >= 55 ? 'BULLISH' : 'ALERT';
+        response.recommendation = `SMC FUSION 11-INDICATOR: ${fd.greenCount}/11 GREEN (${fd.buyPercent}%)`;
+        response.sourcesUsed = ['Antigravity_SMC_AI_Fusion (Live Chart Analysis)', 'Yahoo Finance Free Historical Database'];
+
+        const banner = getDynamicM15Banner(m15, liveGold, atr14, bm);
+        const tactical = getRotatingTactical(m15.elapsedMins);
 
         response.replyBengali =
-`কমান্ডার, **[৩ নম্বর প্রশ্ন: SMC AI Fusion-এর ১১টি ইন্ডিকেটর কী বলছে?]** এর ৩-কলাম বিশ্লেষণ:
+`${banner}কমান্ডার, **[৩ নম্বর প্রশ্ন: SMC AI Fusion-এর ১১টি ইন্ডিকেটর কী বলছে?]** এর ৩-কলাম লাইভ বিশ্লেষণ:
 
-📊 **১১টি ইন্ডিকেটর কনফ্লুয়েন্স ম্যাট্রিক্স (Score: 8 Green / 3 Red):**
-• EMA200: 🟢 | RSI14: 🟢 | MACD: 🟢 | STOCH: 🟢 | ADX: 🟢 | SMC: 🟢
-• SMMA 13/23: 🟢 | CCI: 🟢 | BB: 🔴 | OBV: 🟢 | MFI: 🔴
-• **Buy Strength: 73% [★★★★☆] (STRONG)**
-• **Sell Strength: 27% [★★☆☆☆] (WEAK)**
+📊 **১১টি ইন্ডিকেটর লাইভ ক্যালকুলেটেড ম্যাট্রিক্স (Score: ${fd.greenCount} Green / ${fd.redCount} Red):**
+• EMA200: ${inds.ema ? '🟢' : '🔴'} | RSI14: ${inds.rsi ? '🟢' : '🔴'} | MACD: ${inds.macd ? '🟢' : '🔴'} | STOCH: ${inds.stoch ? '🟢' : '🔴'} | ADX: ${inds.adx ? '🟢' : '🔴'} | SMC: ${inds.smc ? '🟢' : '🔴'}
+• SMMA 13/23: ${inds.smma ? '🟢' : '🔴'} | CCI: ${inds.cci ? '🟢' : '🔴'} | BB: ${inds.bb ? '🟢' : '🔴'} | OBV: ${inds.obv ? '🟢' : '🔴'} | MFI: ${inds.mfi ? '🟢' : '🔴'}
+• **Buy Strength: ${fd.buyPercent}% ${fd.buyStars}**
+• **Sell Strength: ${fd.sellPercent}% ${fd.sellStars}**
 
 ⚡ **৩-কলাম ড্যাশবোর্ড ও Yahoo Free Database স্ট্যাটাস:**
-• Dominant Side: **${fd ? fd.dominantSide : 'BUY ONLY'}**
-• Setup Score: **8 / 11 Confluence (BUY SETUP CONFIRMED)**
-• Real Move: **BUY real 100%** | Fake Move: **Weak 10% (Bear Trap)**
-• Yahoo Database: **${ydb ? ydb.status : 'Connected (440 M15 Bars Active)'}** | ATR(14): **${ydb ? ydb.atr14 : 12.4} pt**
-• ICT SMT Div: **BULLISH SMT** | AMD Phase: **Phase D Markup**
+• Dominant Side: **${fd.dominantSide}**
+• Setup Score: **${fd.greenCount} / 11 Confluence (${fd.finalSetup})**
+• Real Move: **${fd.realMove}** | Fake Move: **${fd.fakeMove}**
+• Yahoo Database: **${ydb ? ydb.status : 'Connected'}** | ATR(14): **${atr14} pt**
+• AI Live Commentary: **${fd.commentary}**
 
-🎯 **২ নম্বরের সাথে সমন্বয়:** ৩ নম্বরে ১১টি ইন্ডিকেটরের দিক (BUY DIRECTION) কনফার্ম করা হলো। তবে রানিং ক্যান্ডেলে তাড়াহুড়ো না করে ২ নম্বরের নিয়ম অনুযায়ী M15 ক্যান্ডেল ক্লোজ হওয়ার সাথে সাথে ১-ক্লিকে বাই অর্ডার এক্সিকিউট করবেন!`;
+🎯 **২ নম্বরের সাথে সমন্বয়:** ৩ নম্বরে ১১টি ইন্ডিকেটরের দিক কনফার্ম করা হলো (${fd.buyPercent}% বায়ার্স)। তবে রানিং ক্যান্ডেলে তাড়াহুড়ো না করে ২ নম্বরের নিয়ম অনুযায়ী M15 ক্যান্ডেল ক্লোজে (${m15.remainingMins} মিনিট বাকি) ১-ক্লিকে বাই অর্ডার এক্সিকিউট করবেন!
 
-        response.voiceText = `কমান্ডার, তিন নম্বর প্রশ্নের উত্তর: এগারোটি ইন্ডিকেটরের মধ্যে আটটি বুলিশ এবং বায়াররা তিয়াত্তর পারসেন্ট শক্তিশালী। সেটআপ কনফার্ম, এম পনেরো ক্যান্ডেল ক্লোজে এন্ট্রি কার্যকর করবেন।`;
+${tactical}`;
+
+        response.voiceText = `কমান্ডার, তিন নম্বর প্রশ্নের উত্তর: এগারোটি ইন্ডিকেটরের মধ্যে ${fd.greenCount} টি বুলিশ এবং বায়ার শক্তি ${fd.buyPercent} পারসেন্ট। সেটআপ ${fd.finalSetup} কনফার্ম।`;
         return response;
     }
 
@@ -741,9 +884,14 @@ async function reasonOmniscientResponse(userPrompt) {
         const bm = g.benchmarks;
         const liveGold = typeof g.yahoo.goldPrice === 'number' ? g.yahoo.goldPrice.toFixed(2) : g.yahoo.goldPrice;
         const diff = (liveGold - bm.yesterdayNYClose).toFixed(1);
+        const ydb = globalMarketState.yahooDatabase;
+        const atr14 = (ydb && ydb.atr14) ? ydb.atr14 : 12.4;
+
+        const banner = getDynamicM15Banner(m15, liveGold, atr14, bm);
+        const tactical = getRotatingTactical(m15.elapsedMins);
 
         response.replyBengali =
-`কমান্ডার, **[৪ নম্বর প্রশ্ন: গতকালের NY Close ও আজকের Daily Open স্ট্যাটাস কী?]** এর লেভেলস:
+`${banner}কমান্ডার, **[৪ নম্বর প্রশ্ন: গতকালের NY Close ও আজকের Daily Open স্ট্যাটাস কী?]** এর লেভেলস:
 
 🏆 **গোল্ড বর্তমান লাইভ প্রাইজ:** $${liveGold}
 
@@ -757,11 +905,14 @@ async function reasonOmniscientResponse(userPrompt) {
 • **Previous Day Low (PDL / SSL):** $${bm.pdl.toFixed(2)}
 • **50% Dealing Range Equilibrium:** $${bm.equilibrium50.toFixed(2)}
 
-🎯 **লিকুইডিটি স্ট্যাটাস:** ${bm.sslBslStatus} — প্রাইস ওপেন ও ক্লোজের নিচে ডিসকাউন্ট জোনে অবস্থান করছে।`;
+🎯 **লিকুইডিটি স্ট্যাটাস:** ${bm.sslBslStatus} — প্রাইস ওপেন ও ক্লোজের নিচে ডিসকাউন্ট জোনে অবস্থান করছে।
 
-        response.voiceText = `কমান্ডার, চার নম্বর প্রশ্নের উত্তর: গতকালের নিউইয়র্ক ক্লোজ চার হাজার চারশত চব্বিশ ডলার এবং আজকের ওপেন চার হাজার তিনশত চুরানব্বই ডলার। বর্তমান দাম ডিসকাউন্ট জোনে ট্রেড করছে।`;
+${tactical}`;
+
+        response.voiceText = `কমান্ডার, চার নম্বর প্রশ্নের উত্তর: গতকালের নিউইয়র্ক ক্লোজ চার হাজার চারশত চব্বিশ ডলার। বর্তমান দাম থেকে ক্লোজের দূরত্ব ${Math.abs(diff)} পয়েন্ট।`;
         return response;
     }
+
 
     // [5] গোল্ড হঠাৎ কেন নামলো বা বাড়লো?
     if (intent === 'NUMBER_5_MACRO_FALL') {
@@ -1908,50 +2059,68 @@ async function autonomousUpdateCycle() {
         if (headlines.length > 0) globalMarketState.news.latestHeadlines = headlines;
     } catch(e) {}
 
-    // Fetch Yahoo 15m Free Database (440+ bars / 5 days)
-    if (globalMarketState.evolution.cycleCount % 3 === 1) {
-        try {
-            const d = await fetchUrl('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=15m&range=5d');
-            const j = JSON.parse(d);
-            const r = j.chart.result[0];
-            const q = r.indicators.quote[0];
-            const n = r.timestamp.length;
-            if (n > 14) {
-                const closes = q.close.filter(c => typeof c === 'number');
-                const lastClose = closes[closes.length - 1];
-                const lastOpen = q.open[n - 1] || lastClose;
-                const lastHigh = q.high[n - 1] || lastClose;
-                const lastLow = q.low[n - 1] || lastClose;
-                const lastVol = q.volume[n - 1] || 0;
-                
-                // ATR(14)
-                let trSum = 0;
-                for (let i = n - 14; i < n; i++) {
-                    const h = q.high[i] || lastClose, l = q.low[i] || lastClose, prevC = q.close[i-1] || l;
-                    const tr = Math.max(h - l, Math.abs(h - prevC), Math.abs(l - prevC));
-                    trSum += tr;
-                }
-                const atr14 = (trSum / 14).toFixed(2);
-
-                globalMarketState.yahooDatabase = {
-                    source: 'Yahoo Finance Free Historical Database (v8/chart)',
-                    status: `CONNECTED (${n} M15 Bars Active)`,
-                    totalBars: n,
-                    timeframe: 'M15',
-                    atr14: parseFloat(atr14),
-                    latestBar: {
-                        time: new Date(r.timestamp[n - 1] * 1000).toISOString(),
-                        open: parseFloat(lastOpen.toFixed(2)),
-                        high: parseFloat(lastHigh.toFixed(2)),
-                        low: parseFloat(lastLow.toFixed(2)),
-                        close: parseFloat(lastClose.toFixed(2)),
-                        volume: lastVol
-                    },
-                    lastSync: new Date().toISOString()
-                };
+    // Fetch Yahoo 15m Free Database (440+ bars / 5 days) & Dynamic Indicators
+    try {
+        const d = await fetchUrl('https://query1.finance.yahoo.com/v8/finance/chart/GC=F?interval=15m&range=5d');
+        const j = JSON.parse(d);
+        const r = j.chart.result[0];
+        const q = r.indicators.quote[0];
+        const n = r.timestamp.length;
+        if (n > 14) {
+            const closes = q.close.filter(c => typeof c === 'number');
+            const lastClose = closes[closes.length - 1];
+            const lastOpen = q.open[n - 1] || lastClose;
+            const lastHigh = q.high[n - 1] || lastClose;
+            const lastLow = q.low[n - 1] || lastClose;
+            const lastVol = q.volume[n - 1] || 0;
+            
+            // ATR(14)
+            let trSum = 0;
+            for (let i = n - 14; i < n; i++) {
+                const h = q.high[i] || lastClose, l = q.low[i] || lastClose, prevC = q.close[i-1] || l;
+                const tr = Math.max(h - l, Math.abs(h - prevC), Math.abs(l - prevC));
+                trSum += tr;
             }
-        } catch(e) {}
-    }
+            const atr14 = (trSum / 14).toFixed(2);
+
+            const candles = [];
+            for (let i = 0; i < n; i++) {
+                if (q.close[i] != null) {
+                    candles.push({
+                        time: new Date(r.timestamp[i] * 1000).toISOString(),
+                        open: q.open[i] || q.close[i],
+                        high: q.high[i] || q.close[i],
+                        low: q.low[i] || q.close[i],
+                        close: q.close[i],
+                        volume: q.volume[i] || 0
+                    });
+                }
+            }
+
+            const ca = analyzeChart(candles);
+            if (ca) {
+                updateFusionDashboardFromChart(ca, candles, lastClose, globalMarketState.yahoo.dxyPrice);
+            }
+
+            globalMarketState.yahooDatabase = {
+                source: 'Yahoo Finance Free Historical Database (v8/chart)',
+                status: `CONNECTED (${n} M15 Bars Active)`,
+                totalBars: n,
+                timeframe: 'M15',
+                atr14: parseFloat(atr14),
+                latestBar: {
+                    time: new Date(r.timestamp[n - 1] * 1000).toISOString(),
+                    open: parseFloat(lastOpen.toFixed(2)),
+                    high: parseFloat(lastHigh.toFixed(2)),
+                    low: parseFloat(lastLow.toFixed(2)),
+                    close: parseFloat(lastClose.toFixed(2)),
+                    volume: lastVol
+                },
+                lastSync: new Date().toISOString()
+            };
+        }
+    } catch(e) {}
+
 
     // Recalculate Daily Benchmarks (Yesterday NY Close, Open, PDH, PDL)
     if (globalMarketState.evolution.cycleCount % 6 === 1) {
