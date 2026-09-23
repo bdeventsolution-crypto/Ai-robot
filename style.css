@@ -1096,5 +1096,78 @@ body {
     }
 }
 
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE OPTIMIZATION (iPhone & Android Screen Rules)
+   ══════════════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .hud-header {
+        height: auto !important;
+        padding: 10px 14px !important;
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 8px !important;
+    }
+    .brand {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .brand-title {
+        font-size: 13px !important;
+    }
+    .telemetry-bar {
+        display: grid !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 6px !important;
+        width: 100% !important;
+        overflow-x: visible !important;
+    }
+    .tel-item {
+        padding: 6px 10px !important;
+    }
+    .tel-label {
+        font-size: 9px !important;
+    }
+    .tel-val {
+        font-size: 13px !important;
+    }
+    .robot-stage {
+        height: 260px !important;
+        touch-action: pan-y !important;
+    }
+    #three-container {
+        height: 220px !important;
+    }
+    .content-body {
+        padding: 10px !important;
+        gap: 12px !important;
+    }
+    .intel-console {
+        padding: 0 !important;
+        gap: 14px !important;
+    }
+    .panel-card {
+        padding: 14px !important;
+        border-radius: 10px !important;
+    }
+    .market-grid, .fusion-grid, .qa-grid, .conf-power-row {
+        grid-template-columns: 1fr !important;
+    }
+    .qa-card {
+        padding: 12px !important;
+    }
+    .quick-scroll-bar {
+        right: 10px !important;
+        bottom: 15px !important;
+    }
+    .scroll-btn {
+        padding: 7px 12px !important;
+        font-size: 9px !important;
+    }
+    .chat-card {
+        min-height: 380px !important;
+    }
+}
+
+
 
 
