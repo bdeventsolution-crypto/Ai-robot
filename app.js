@@ -249,43 +249,111 @@ function drawAudioWaveform() {
 drawAudioWaveform();
 
 // ===================================================================
-// 3. SPEECH SYNTHESIS & VOICE OUTPUT (BENGALI / ENGLISH)
+// 3. SPEECH SYNTHESIS & VOICE OUTPUT (MOBILE & DESKTOP COMPATIBLE)
 // ===================================================================
-function speakHermesVoice(text) {
-    if (!synth) return;
-    synth.cancel(); // Stop any pending speech
+function cleanTextForSpeech(raw) {
+    if (!raw) return '';
+    return raw
+        .replace(/<[^>]*>/g, ' ')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/\[\d+\]/g, ' ')
+        .replace(/\[[★☆]+\]/g, ' ')
+        .replace(/[🤖👤⚡🎯🔴🟢🔵⭐★☆📡🧠📺📰🔄💧⚛️🔬]/g, ' ')
+        .replace(/https?:\/\/\S+/g, ' ')
+        .replace(/\$([0-9,.]+)/g, '$1 ডলার')
+        .replace(/[\n\r]+/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+}
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 1.05;
-    utterance.pitch = 0.95; // Deep cyber robotic tone
-
-    // Search for Bengali voice or high quality natural voice
-    const voices = synth.getVoices();
-    let selectedVoice = voices.find(v => v.lang.includes('bn') || v.lang.includes('ben'));
-    if (!selectedVoice) {
-        selectedVoice = voices.find(v => v.lang.includes('en-US') && (v.name.includes('Natural') || v.name.includes('David') || v.name.includes('Google')));
+// Mobile Audio Auto-Unlock
+function unlockMobileAudio() {
+    if (window.speechSynthesis) {
+        try {
+            if (window.speechSynthesis.paused) window.speechSynthesis.resume();
+            const silent = new SpeechSynthesisUtterance(' ');
+            silent.volume = 0.01;
+            window.speechSynthesis.speak(silent);
+        } catch(e) {}
     }
-    if (selectedVoice) utterance.voice = selectedVoice;
+}
+document.addEventListener('touchstart', unlockMobileAudio, { once: true, passive: true });
+document.addEventListener('click', unlockMobileAudio, { once: true });
+
+if (window.speechSynthesis) {
+    window.speechSynthesis.onvoiceschanged = () => {
+        if (window.speechSynthesis) window.speechSynthesis.getVoices();
+    };
+}
+
+function speakHermesVoice(text) {
+    if (!window.speechSynthesis) return;
+    const synth = window.speechSynthesis;
+
+    try {
+        if (synth.paused) synth.resume();
+        synth.cancel(); // Stop pending speech
+    } catch(e) {}
+
+    const cleanText = cleanTextForSpeech(text);
+    if (!cleanText) return;
+
+    const utterance = new SpeechSynthesisUtterance(cleanText);
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    const hasBengali = /[\u0980-\u09FF]/.test(cleanText);
+    const voices = synth.getVoices() || [];
+
+    if (hasBengali) {
+        utterance.lang = 'bn-BD';
+        const bnVoice = voices.find(v => (v.lang && (v.lang.includes('bn') || v.lang.includes('ben'))));
+        if (bnVoice) {
+            utterance.voice = bnVoice;
+        }
+        // If no explicit Bengali voice, DO NOT force an English voice on Bengali text!
+    } else {
+        utterance.lang = 'en-US';
+        const enVoice = voices.find(v => v.lang && v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David')));
+        if (enVoice) utterance.voice = enVoice;
+    }
 
     utterance.onstart = () => {
         isSpeaking = true;
-        voiceIndicator.innerText = "HERMES AUDIO: TRANSMITTING...";
-        voiceIndicator.style.color = "#00ff66";
+        if (voiceIndicator) {
+            voiceIndicator.innerText = "HERMES AUDIO: TRANSMITTING...";
+            voiceIndicator.style.color = "#00ff66";
+        }
     };
 
     utterance.onend = () => {
         isSpeaking = false;
-        voiceIndicator.innerText = "HERMES AUDIO: READY";
-        voiceIndicator.style.color = "#00f0ff";
+        if (voiceIndicator) {
+            voiceIndicator.innerText = "HERMES AUDIO: READY";
+            voiceIndicator.style.color = "#00f0ff";
+        }
     };
 
-    utterance.onerror = () => {
+    utterance.onerror = (e) => {
+        console.warn("Speech error:", e);
         isSpeaking = false;
-        voiceIndicator.innerText = "HERMES AUDIO: READY";
+        if (voiceIndicator) {
+            voiceIndicator.innerText = "HERMES AUDIO: READY";
+            voiceIndicator.style.color = "#00f0ff";
+        }
     };
 
-    synth.speak(utterance);
+    // Keep reference in window so mobile garbage collection doesn't kill utterance
+    window._activeUtterance = utterance;
+
+    try {
+        synth.speak(utterance);
+    } catch(err) {
+        console.warn("Speak failed:", err);
+    }
 }
+
 
 // ===================================================================
 // 4. SPEECH RECOGNITION (VOICE INPUT IN BENGALI / ENGLISH & BANGLISH)
@@ -418,20 +486,28 @@ async function handleSendMessage() {
         }
 
     } catch (err) {
-        appendMessageCard("🤖 HERMES AI CO-PILOT", "মিয়াভাই, নেটওয়ার্ক ব্রিজে সামান্য ত্রুটি হয়েছে। অনুগ্রহ করে আবার বলুন।", "hermes-msg");
+        appendMessageCard("🤖 HERMES AI CO-PILOT", "কমান্ডার, ক্লাউড কানেকশনে সামান্য সময় লাগছে। অনুগ্রহ করে আরেকবার ক্লিক করুন।", "hermes-msg");
         setAvatarEmotion("ALERT");
     }
 }
 
-sendTrigger.addEventListener('click', handleSendMessage);
-userInput.addEventListener('keydown', (e) => {
-    if (e.key === 'Enter') handleSendMessage();
+sendTrigger.addEventListener('click', () => {
+    unlockMobileAudio();
+    handleSendMessage();
 });
 
-// Numbered Quick Question Chips Click Handler
+userInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+        unlockMobileAudio();
+        handleSendMessage();
+    }
+});
+
+// Numbered Quick Question Chips Click Handler with Instant Mobile Audio Unlock
 document.addEventListener('click', (e) => {
     const chip = e.target.closest('.qq-chip');
     if (chip) {
+        unlockMobileAudio(); // IMMEDIATE UNLOCK
         const num = chip.getAttribute('data-num');
         if (num) {
             userInput.value = num;
@@ -445,17 +521,31 @@ function appendMessageCard(sender, text, msgClass) {
     msgDiv.className = `msg ${msgClass}`;
     
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const isHermes = msgClass.includes('hermes-msg');
+
     msgDiv.innerHTML = `
         <div class="msg-header">
             <span class="sender-name">${sender}</span>
             <span class="time-stamp">${timeStr}</span>
+            ${isHermes ? `<button class="msg-speak-btn" title="কথা শুনুন">🔊 কথা শুনুন</button>` : ''}
         </div>
         <div class="msg-body">${text.replace(/\n/g, '<br>')}</div>
     `;
 
+    if (isHermes) {
+        const btn = msgDiv.querySelector('.msg-speak-btn');
+        if (btn) {
+            btn.addEventListener('click', () => {
+                unlockMobileAudio();
+                speakHermesVoice(text);
+            });
+        }
+    }
+
     chatStream.appendChild(msgDiv);
     chatStream.scrollTop = chatStream.scrollHeight;
 }
+
 
 // ===================================================================
 // 6. REAL-TIME 5-SOURCE TELEMETRY & AUTONOMOUS SELF-UPDATE
