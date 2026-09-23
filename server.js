@@ -16,7 +16,7 @@ StudyEngine.startStudyDaemon();
 
 
 const PORT       = process.env.PORT || 7777;
-const PUBLIC_DIR = path.join(__dirname, 'public');
+const PUBLIC_DIR = (fs.existsSync(path.join(__dirname, 'public', 'index.html'))) ? path.join(__dirname, 'public') : __dirname;
 const MEMORY_FILE = path.join(__dirname, 'hermes_brain_memory.json');
 const MT5_FILES  = 'C:\\Users\\User\\AppData\\Roaming\\MetaQuotes\\Terminal\\BB16F565FAAA6B23A20C26C49416FF05\\MQL5\\Files';
 
