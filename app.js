@@ -267,8 +267,19 @@ function cleanTextForSpeech(raw) {
         .trim();
 }
 
-// Mobile Audio Auto-Unlock
+// Universal Mobile Audio Voice Player (100% Android, iPhone & Desktop Compatible)
+let activeVoiceAudio = null;
+
 function unlockMobileAudio() {
+    if (!activeVoiceAudio) {
+        activeVoiceAudio = new Audio();
+    }
+    // Play a 1-sample silent sound to prime mobile browser audio context
+    try {
+        activeVoiceAudio.src = 'data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA';
+        activeVoiceAudio.play().catch(() => {});
+    } catch(e) {}
+
     if (window.speechSynthesis) {
         try {
             if (window.speechSynthesis.paused) window.speechSynthesis.resume();
@@ -278,8 +289,8 @@ function unlockMobileAudio() {
         } catch(e) {}
     }
 }
-document.addEventListener('touchstart', unlockMobileAudio, { once: true, passive: true });
-document.addEventListener('click', unlockMobileAudio, { once: true });
+document.addEventListener('touchstart', unlockMobileAudio, { passive: true });
+document.addEventListener('click', unlockMobileAudio);
 
 if (window.speechSynthesis) {
     window.speechSynthesis.onvoiceschanged = () => {
@@ -288,16 +299,69 @@ if (window.speechSynthesis) {
 }
 
 function speakHermesVoice(text) {
-    if (!window.speechSynthesis) return;
-    const synth = window.speechSynthesis;
-
-    try {
-        if (synth.paused) synth.resume();
-        synth.cancel(); // Stop pending speech
-    } catch(e) {}
-
+    if (!text) return;
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) return;
+
+    if (!activeVoiceAudio) {
+        activeVoiceAudio = new Audio();
+    }
+
+    try {
+        activeVoiceAudio.pause();
+        activeVoiceAudio.currentTime = 0;
+    } catch(e) {}
+
+    // Use our high-fidelity Bengali TTS MP3 stream
+    const ttsUrl = '/api/tts?text=' + encodeURIComponent(cleanText);
+    activeVoiceAudio.src = ttsUrl;
+
+    isSpeaking = true;
+    if (voiceIndicator) {
+        voiceIndicator.innerText = "HERMES AUDIO: TRANSMITTING...";
+        voiceIndicator.style.color = "#00ff66";
+    }
+
+    activeVoiceAudio.onplay = () => {
+        isSpeaking = true;
+        if (voiceIndicator) {
+            voiceIndicator.innerText = "HERMES AUDIO: TRANSMITTING...";
+            voiceIndicator.style.color = "#00ff66";
+        }
+    };
+
+    activeVoiceAudio.onended = () => {
+        isSpeaking = false;
+        if (voiceIndicator) {
+            voiceIndicator.innerText = "HERMES AUDIO: READY";
+            voiceIndicator.style.color = "#00f0ff";
+        }
+    };
+
+    activeVoiceAudio.onerror = (e) => {
+        console.warn("Server MP3 TTS failed, switching to browser Web Speech API:", e);
+        speakWithBrowserSpeechSynthesis(cleanText);
+    };
+
+    const playPromise = activeVoiceAudio.play();
+    if (playPromise !== undefined) {
+        playPromise.catch(err => {
+            console.warn("Audio autoplay blocked by browser policy, attempting fallback:", err);
+            speakWithBrowserSpeechSynthesis(cleanText);
+        });
+    }
+}
+
+function speakWithBrowserSpeechSynthesis(cleanText) {
+    if (!window.speechSynthesis) {
+        isSpeaking = false;
+        return;
+    }
+    const synth = window.speechSynthesis;
+    try {
+        if (synth.paused) synth.resume();
+        synth.cancel();
+    } catch(e) {}
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
     utterance.rate = 1.0;
@@ -309,10 +373,7 @@ function speakHermesVoice(text) {
     if (hasBengali) {
         utterance.lang = 'bn-BD';
         const bnVoice = voices.find(v => (v.lang && (v.lang.includes('bn') || v.lang.includes('ben'))));
-        if (bnVoice) {
-            utterance.voice = bnVoice;
-        }
-        // If no explicit Bengali voice, DO NOT force an English voice on Bengali text!
+        if (bnVoice) utterance.voice = bnVoice;
     } else {
         utterance.lang = 'en-US';
         const enVoice = voices.find(v => v.lang && v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David')));
@@ -336,7 +397,6 @@ function speakHermesVoice(text) {
     };
 
     utterance.onerror = (e) => {
-        console.warn("Speech error:", e);
         isSpeaking = false;
         if (voiceIndicator) {
             voiceIndicator.innerText = "HERMES AUDIO: READY";
@@ -344,13 +404,11 @@ function speakHermesVoice(text) {
         }
     };
 
-    // Keep reference in window so mobile garbage collection doesn't kill utterance
     window._activeUtterance = utterance;
-
     try {
         synth.speak(utterance);
     } catch(err) {
-        console.warn("Speak failed:", err);
+        isSpeaking = false;
     }
 }
 

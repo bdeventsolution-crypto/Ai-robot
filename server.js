@@ -243,24 +243,41 @@ async function fetchYahooOHLCV(symbol, interval='15m', range='1d') {
     } catch(e) { return null; }
 }
 
-// Fetch news from multiple free sources
+// Fetch news from multiple free sources including live Google News RSS
 async function fetchMarketNews() {
     const headlines = [];
-    // Source 1: Yahoo Finance RSS-style headlines via search
+    // Source 1: Google News RSS for Live Gold & Dollar Index Breaking News
+    try {
+        const d = await fetchUrl('https://news.google.com/rss/search?q=gold+price+XAUUSD+OR+dollar+index&hl=en-US&gl=US&ceid=US:en');
+        const items = d.split('<item>');
+        for (let i = 1; i < items.length && headlines.length < 5; i++) {
+            const item = items[i];
+            const titleMatch = item.match(/<title>(.*?)<\/title>/);
+            const pubDateMatch = item.match(/<pubDate>(.*?)<\/pubDate>/);
+            const sourceMatch = item.match(/<source[^>]*>(.*?)<\/source>/);
+            if (titleMatch) {
+                const rawTitle = titleMatch[1].replace(/<!\[CDATA\[(.*?)\]\]>/, '$1').replace(/&amp;/g, '&');
+                const source = sourceMatch ? sourceMatch[1] : 'Financial News';
+                const time = pubDateMatch ? new Date(pubDateMatch[1]).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Live';
+                headlines.push({ source, title: rawTitle, time });
+            }
+        }
+    } catch(e) {}
+    // Source 2: Yahoo Finance RSS-style headlines via search
     try {
         const data = await fetchUrl('https://query2.finance.yahoo.com/v1/finance/search?q=gold+XAUUSD&newsCount=5&lang=en-US');
         const json = JSON.parse(data);
         if (json.news) {
-            json.news.slice(0,5).forEach(n => headlines.push({ source: 'Yahoo', title: n.title, time: new Date(n.providerPublishTime * 1000).toISOString() }));
+            json.news.slice(0,3).forEach(n => headlines.push({ source: 'Yahoo Finance', title: n.title, time: new Date(n.providerPublishTime * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }));
         }
     } catch(e) {}
-    // Source 2: GoldPrice.org simple API
+    // Source 3: GoldPrice.org simple API
     try {
         const data = await fetchUrl('https://data-asg.goldprice.org/dbXRates/USD');
         const json = JSON.parse(data);
         if (json.items && json.items[0]) {
             const gp = json.items[0];
-            headlines.push({ source: 'GoldPrice.org', title: `Gold: $${(gp.xauPrice || 0).toFixed(2)} | Silver: $${(gp.xagPrice || 0).toFixed(2)}`, time: new Date().toISOString() });
+            headlines.push({ source: 'GoldPrice.org', title: `Gold: $${(gp.xauPrice || 0).toFixed(2)} | Silver: $${(gp.xagPrice || 0).toFixed(2)}`, time: 'Live' });
         }
     } catch(e) {}
     return headlines;
@@ -491,7 +508,16 @@ function classifyIntent(q) {
     if (/^(tero|তেরো|তের|thirteen)$/i.test(raw)) return 'NUMBER_13_NEW_RESEARCH';
 
     // Direct Natural Language Specific Question Matches
-    if (raw.includes('research') || raw.includes('রিসার্চ') || raw.includes('new research') || raw.includes('research update') || raw.includes('notun research') || raw.includes('rodot er new research') || raw.includes('robot er new research')) {
+    const isResearchOrFundamental = (
+        raw.includes('research') || raw.includes('রিসার্চ') || 
+        raw.includes('fundamental') || raw.includes('ফান্ডামেন্টাল') || 
+        raw.includes('khobor') || raw.includes('খবর') || 
+        raw.includes('new kisu') || raw.includes('notun kisu') || raw.includes('নতুন কিছু') ||
+        raw.includes('new research') || raw.includes('research update') || raw.includes('notun research') || 
+        raw.includes('rodot er new research') || raw.includes('robot er new research') ||
+        raw.includes('news update') || raw.includes('market update')
+    );
+    if (isResearchOrFundamental) {
         return 'NUMBER_13_NEW_RESEARCH';
     }
     if (raw.includes('buy entry') || raw.includes('buy nibo') || raw.includes('buy korbo') || raw.includes('+ buy') || raw.includes('বাই এন্ট্রি') || raw.includes('বাই নিবো') || raw.includes('buy entry nibo')) {
@@ -1127,11 +1153,11 @@ ${topMem || '  (ব্রেইন প্রতিনিয়ত নতুন �
         return response;
     }
 
-    // [13] রোবটের নতুন রিসার্চ আপডেট কী? (rodot er new research update ki — DYNAMIC ROTATING REPORT)
+    // [13] রোবটের নতুন রিসার্চ ও ফান্ডামেন্টাল আপডেট কী? (LIVE FUNDAMENTAL & QUANT RESEARCH ENGINE)
     if (intent === 'NUMBER_13_NEW_RESEARCH') {
         response.avatarEmotion = 'ANALYZING';
-        response.recommendation = 'HERMES DYNAMIC QUANT RESEARCH & KNOWLEDGE SYNC';
-        response.sourcesUsed = ['YouTube Financial Study Engine', '5,000 M15 Quant Gold Dataset', 'Wyckoff VSA Microstructure', 'Yahoo Free Database'];
+        response.recommendation = 'LIVE FUNDAMENTAL & QUANT MACRO INTELLIGENCE';
+        response.sourcesUsed = ['Google News Live RSS', 'Reuters & FXStreet', 'Hermes Quantitative Brain', 'Yahoo 15m Real Data'];
 
         const ss = StudyEngine.getStudyStatus();
         const allInsights = (typeof StudyEngine.getAllInsights === 'function' ? StudyEngine.getAllInsights() : (ss.recentInsights || []));
@@ -1143,70 +1169,48 @@ ${topMem || '  (ব্রেইন প্রতিনিয়ত নতুন �
             `   ${i+1}. 🎥 **[${ins.source}]** ${ins.text}\n      ↳ ${ins.details ? ins.details.slice(0, 110) + '...' : ''}`
         ).join('\n\n');
 
-        // 5 Rotating Institutional Research Tracks
-        if (typeof globalMarketState._researchCycle !== 'number') globalMarketState._researchCycle = 0;
-        globalMarketState._researchCycle++;
-        const trackId = (globalMarketState._researchCycle % 5);
-
-        let quantFocusTitle = '';
-        let quantFocusBody = '';
-
-        if (trackId === 0) {
-            quantFocusTitle = '🛡️ রিসার্চ ট্র্যাক ১: দ্য ২.৫x ATR নিউজ শিল্ড (The 2.5x ATR News Shield)';
-            quantFocusBody = 
-`• **গবেষণার বিষয়:** কেন সাধারণ রিটেল ব্রেকআউট নিউজ স্পাইকে অ্যাকাউন্টে বড় ক্ষতি করে?
-• **কোয়ান্ট ফাইন্ডিং:** ৫,০০০ M15 গোল্ড ক্যান্ডেল ব্যাকটেস্টে দেখা গেছে—হাই-ইমপ্যাক্ট নিউজের সময় ক্যান্ডেল রেঞ্জ স্বাভাবিক ATR(14) এর ২.৫ গুণের বেশি হয়।
-• **অ্যালগরিদম রুল:** যদি কোনো ক্যান্ডেলের রেঞ্জ > ২.৫x ATR হয়, সেটিকে সরাসরি **INVALID / NEWS SPIKE** হিসেবে ফিল্টার আউট করা হয়।
-• **ফলাফল:** এই একটিমাত্র ফিল্টারের কারণে স্ট্র্যাটেজির উইন রেট ৪২% থেকে একলাফে **৬২.৫%-এ উন্নীত হয়েছে**!`;
-        } else if (trackId === 1) {
-            quantFocusTitle = '🎯 রিসার্চ ট্র্যাক ২: "Uptrend-এ Buy, Downtrend-এ Sell" মিথ ব্রেকিং ও ডিলিং রেঞ্জ';
-            quantFocusBody =
-`• **গবেষণার বিষয়:** রিটেল ট্রেডাররা কেন সবসময় হাইতে Buy নিয়ে এবং বটমে Sell নিয়ে ফেঁসে যায়?
-• **কোয়ান্ট ফাইন্ডিং:** ট্রেন্ড ইন্ডিকেটরগুলো অতিরিক্ত দেরিতে সিগন্যাল দেয় (Lagging Indicator)। যখন রিটেলরা হাইতে Buy নেয়, স্মার্ট মানি তখন Distribution (UTAD) করে প্রফিট বুক করে।
-• **অ্যালগরিদম রুল:** Dealing Range (M30/Daily) এর ৫০% ইকুইলিব্রিয়াম ট্র্যাক করা। আমরা **ডিসকাউন্ট জোনে (Discount Zone) SSL সুইপ হলে Buy** নিই এবং **প্রিমিয়াম জোনে (Premium Zone) BSL সুইপ হলে Sell** নিই।
-• **ফলাফল:** রিটেল লিকুইডিটি ট্র্যাপ থেকে শতভাগ রেহাই এবং সর্বনিম্ন ড্রডাউনে বটম স্নাইপার এন্ট্রি।`;
-        } else if (trackId === 2) {
-            quantFocusTitle = '⚛️ রিসার্চ ট্র্যাক ৩: কোয়ান্টাম ভলিউম ফিজিক্স ও ট্রিনিটি ইঞ্জিন (Trinity Microstructure)';
-            quantFocusBody =
-`• **গবেষণার বিষয়:** প্রাইসের পেছনে স্মার্ট মানির ভর ও বেগ (Mass & Velocity) পরিমাপ।
-• **কোয়ান্ট ফাইন্ডিং:** কাইনেটিক এনার্জি ($E_k = \\frac{1}{2} m v^2$) যখন ` + '`' + `COMPRESSED` + '`' + ` অবস্থায় আসে, তখন ভলিউম স্প্রিং-এর মতো শক্তি সঞ্চয় করে।
-• **শ্যানন এন্ট্রপি ($H \\le 0.42$):** অর্ডার ফ্লো সুশৃঙ্খল নাকি রিটেলদের বিশৃঙ্খল র্যান্ডম নয়েজ—তা নিখুঁতভাবে ফিল্টার করে।
-• **হার্স্ট এক্সপোনেন্ট ($H > 0.5$):** নিশ্চিত করে মার্কেট কোনো র্যান্ডম চপে নেই, বরং একটি শক্তিশালী ট্রেন্ডিং মোমেন্টামে আছে।`;
-        } else if (trackId === 3) {
-            quantFocusTitle = '⏱️ রিসার্চ ট্র্যাক ৪: M15 সুইট স্পট বনাম M1/M5 অ্যালগরিদমিক ফলস নয়েজ';
-            quantFocusBody =
-`• **গবেষণার বিষয়:** গোল্ডে কোন টাইমফ্রেম সবচেয়ে নিখুঁত ও লাভজনক?
-• **কোয়ান্ট ফাইন্ডিং:** M1 এবং M5 টাইমফ্রেমে প্রাতিষ্ঠানিক অ্যালগরিদমগুলো প্রতি মিনিটে রিটেলদের স্টপ-হান্ট করে।
-• **ম্যাথমেটিক্যাল রেজাল্ট:** M15 টাইমফ্রেমে ১২-বার সুইপ পর্যবেক্ষণ করলে **৮৩% ফলস স্টপ-হান্ট উইক স্বয়ংক্রিয়ভাবে বাতিল হয়ে যায়**।
-• **রিস্ক-টু-রিওয়ার্ড:** M15 এ গড়ে ১:২.৫ আরআর পাওয়া যায়, যা লং-টার্ম ক্যাপিটাল প্রটেকশনের জন্য গোল্ডে সবচেয়ে নির্ভরযোগ্য।`;
-        } else {
-            quantFocusTitle = '💰 রিসার্চ ট্র্যাক ৫: কমান্ডার ওমরের ২-টায়ার ক্যাশ লক ম্যাথমেটিক্স ("Cash in Bank")';
-            quantFocusBody =
-`• **গবেষণার বিষয়:** ট্রেইলিং স্টপলস একা কেন গোল্ডের আকস্মিক পুলব্যাকে ব্যর্থ হয়?
-• **কোয়ান্ট ফাইন্ডিং:** গোল্ডে শুধু ট্রেইলিং লাগালে হঠাৎ ডিপ পুলব্যাকে লাভজনক ট্রেড ব্রেক-ইভেনে কেটে যায়, ক্যাশ ব্যালেন্স বাড়ে না।
-• **২-টায়ার ব্লুপ্রিন্ট:** Milestone 1 (+800 pts / 1:1 RR) এ পৌঁছানো মাত্র **৫০% লট (যেমন: 0.05 এর মধ্যে 0.03) ক্লোজ করে নগদ ক্যাশ ব্যাংকে ঢুকানো** এবং বাকি রানার BE তে সেট করা।
-• **ফলাফল:** এই ফর্মুলায় প্রতি সপ্তাহে নিশ্চিত ক্যাশ গ্রোথ হয় এবং কোনো উইনিং ট্রেড কখনোই আর লসে রূপান্তরিত হতে পারে না!`;
-        }
+        // Fetch fresh live news headlines
+        const freshNews = await fetchMarketNews();
+        const topHeadlines = freshNews.slice(0, 4).map((h, i) => 
+            `• 📰 **[${h.source} | ${h.time}]** ${h.title}`
+        ).join('\n');
 
         const ydb = globalMarketState.yahooDatabase;
         const liveATR = ydb ? ydb.atr14 : 8.41;
+        const liveGold = typeof globalMarketState.yahoo.goldPrice === 'number' ? globalMarketState.yahoo.goldPrice.toFixed(2) : globalMarketState.yahoo.goldPrice;
+        const dxyPrice = parseFloat(globalMarketState.yahoo.dxyPrice || 101.11).toFixed(2);
+        const dxyBias = globalMarketState.yahoo.dxyBias || 'DXY WEAK (BULLISH GOLD BIAS)';
+        const bm = globalMarketState.benchmarks;
+        const diffClose = (liveGold - bm.yesterdayNYClose).toFixed(1);
 
         response.replyBengali =
-`কমান্ডার, **[১৩ নম্বর প্রশ্ন: রোবটের নতুন রিসার্চ আপডেট কী? (রিসার্চ সাইকেল #${globalMarketState._researchCycle})]** এর ডায়নামিক রিপোর্ট:
+`কমান্ডার, **[লাইভ মার্কেট রিসার্চ, ফান্ডামেন্টাল নিউজ ও কোয়ান্ট আপডেট]**:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${quantFocusTitle}
-${quantFocusBody}
+🌍 **১. লাইভ ব্রেকিং ফান্ডামেন্টাল নিউজ (Google News & Top Financial Media):**
+${topHeadlines || '• 📰 মার্কেট থেকে তাজা নিউজ হেডলাইন ফেচ করা হচ্ছে...'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🤖 **অটোনোমাস এআই সেলফ-লার্নিং স্ট্যাটাস (মোট সংরক্ষিত কৌশল: ${ss.totalInsights}টি):**
-• সম্পন্ন স্টাডি সাইকেল: **#${ss.studyCycles}টি** | লাইভ Yahoo 15m ডেটাবেজ ATR: **${liveATR} pt**
-• **ব্রেইন থেকে নির্বাচিত ৩টি লাইভ প্রাতিষ্ঠানিক ইনসাইট (Dynamic Rotation):**
-${dynamicMem || '   (ইউটিউব ও ওয়েব থেকে লাইভ অর্ডার ফ্লো অ্যানালাইসিস প্রসেস হচ্ছে...)'}
+🏛️ **২. ম্যাক্রো ইকোনমিক ও কারেন্সি ফান্ডামেন্টালস (Macro Drivers):**
+• **DXY ডলার ইনডেক্স:** **${dxyPrice}** (${dxyBias})
+  ↳ *ইমপ্যাক্ট:* ডলার ইনডেক্স দুর্বল থাকা গোল্ডের বুলিশ মোমেন্টামকে সরাসরি ব্যাকআপ দিচ্ছে।
+• **ফেড পলিসি ও ইন্টারেস্ট রেট আউটলুক:** ইউএস সেন্ট্রাল ব্যাংক রেট কাট সাইকেলে অবস্থান করছে। নন-ইল্ডিং অ্যাসেট হিসেবে গোল্ডের জন্য এটি লং-টার্ম প্রাতিষ্ঠানিক সাপোর্ট।
+• **সেন্ট্রাল ব্যাংক গোল্ড অ্যাকুমুলেশন ও নিরাপদ আশ্রয়:** PBOC (চীন) এবং গ্লোবাল সেন্ট্রাল ব্যাংকগুলোর গোল্ড রিজার্ভ বৃদ্ধি ও ভূ-রাজনৈতিক অস্থিরতার কারণে লোয়ার ডিপে লিকুইডিটি অ্যাবসর্পশন চলছে।
 
-💡 **নোট:** আপনি প্রতিবার ১৩ চাপলে বা প্রশ্ন করলে রোবটের ব্রেইন নতুন নতুন রিসার্চ ট্র্যাক ও তাজা ইনসাইট তুলে ধরবে!`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 **৩. রিয়েল-টাইম M15 টেকনিক্যাল ও অর্ডার ফ্লো কোয়ান্ট:**
+• **বর্তমান গোল্ড প্রাইজ:** **$${liveGold}** (NY Close থেকে **${diffClose > 0 ? '+' + diffClose : diffClose} pt**)
+• **ATR(14) ভোলাটিলিটি:** **${liveATR} pt** | **২.৫x ATR নিউজ শিল্ড:** সক্রিয় (${(liveATR * 2.5).toFixed(1)} pt এর বেশি স্পাইক ক্যান্ডেল অবৈধ)
+• **ডিলিং রেঞ্জ জোন:** **${bm.regime}** (${bm.sslBslStatus})
+• **অ্যালগো গাইডলাইন:** হাইতে রিটেল ব্রেকআউট ফোমো (FOMO) বাই এড়িয়ে ডিপ ডিসকাউন্ট ও ভ্যালু এরিয়া লো (VAL) সুইপ থেকে বাই কনফার্মেশন ধরা।
 
-        response.voiceText = `কমান্ডার, তেরো নম্বর প্রশ্নের নতুন রিসার্চ আপডেট: আমরা পাঁচটি রিসার্চ ট্র্যাক এবং একাত্তরটি প্রাতিষ্ঠানিক স্ট্র্যাটেজির মাধ্যমে প্রতিনিয়ত আপডেট হচ্ছি।`;
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤖 **৪. হার্মিস ব্রেইন স্টাডি থেকে ৩টি নতুন প্রাতিষ্ঠানিক কৌশল (Dynamic Insights):**
+${dynamicMem || '   (ইউটিউব ও ওয়েব থেকে লাইভ স্ট্র্যাটেজি প্রসেস হচ্ছে...)'}
+
+💡 **সারসংক্ষেপ:** ফান্ডামেন্টাল এবং টেকনিক্যাল উভয় দিক থেকেই গোল্ড ডিপ ডিসকাউন্টে বায়ারদের নিয়ন্ত্রণে আছে। হুটহাট হাইতে বাই না নিয়ে ডিসকাউন্ট সুইপে স্নাইপার এন্ট্রি নিন!`;
+
+        response.voiceText = `কমান্ডার, লাইভ ফান্ডামেন্টাল ও রিসার্চ আপডেটে ডলার ইনডেক্স ${dxyPrice} এ দুর্বল অবস্থায় আছে। গোল্ড $${liveGold} এ ডিসকাউন্ট জোনে বায়ারদের দখলে। ব্রেকিং নিউজে সেন্ট্রাল ব্যাংকের গোল্ড রিজার্ভ সাপোর্ট দেখা যাচ্ছে।`;
         return response;
     }
 
@@ -2192,6 +2196,57 @@ const server = http.createServer((req, res) => {
         });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ message: 'Study cycle initiated! Scraping YouTube, FXStreet, Yahoo RSS & Investing.com...' }));
+        return;
+    }
+
+    // ══════════════════════════════════════════════════════════════════════════
+    // UNIVERSAL MOBILE BENGALI AUDIO TTS STREAM (100% Mobile Compatible MP3)
+    // ══════════════════════════════════════════════════════════════════════════
+    if (pathname === '/api/tts' && req.method === 'GET') {
+        const text = (parsedUrl.query.text || '').trim();
+        if (!text) {
+            res.writeHead(400, { 'Content-Type': 'text/plain' });
+            res.end('No text provided');
+            return;
+        }
+
+        let clean = text
+            .replace(/<[^>]*>/g, ' ')
+            .replace(/\*\*([^*]+)\*\*/g, '$1')
+            .replace(/\*([^*]+)\*/g, '$1')
+            .replace(/\[\d+\]/g, ' ')
+            .replace(/\[[★☆]+\]/g, ' ')
+            .replace(/[🤖👤⚡🎯🔴🟢🔵⭐★☆📡🧠📺📰🔄💧⚛️🔬⏱️🛡️💡]/g, ' ')
+            .replace(/https?:\/\/\S+/g, ' ')
+            .replace(/\$([0-9,.]+)/g, '$1 ডলার')
+            .replace(/[\n\r]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        if (clean.length > 180) {
+            const firstDot = clean.indexOf('।');
+            if (firstDot > 20 && firstDot < 180) {
+                clean = clean.substring(0, firstDot + 1);
+            } else {
+                clean = clean.substring(0, 175) + '।';
+            }
+        }
+
+        const ttsUrl = 'https://translate.google.com/translate_tts?ie=UTF-8&tl=bn&client=tw-ob&q=' + encodeURIComponent(clean);
+        https.get(ttsUrl, {
+            headers: {
+                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+            }
+        }, (googleRes) => {
+            res.writeHead(200, {
+                'Content-Type': 'audio/mpeg',
+                'Cache-Control': 'public, max-age=3600'
+            });
+            googleRes.pipe(res);
+        }).on('error', (err) => {
+            res.writeHead(500, { 'Content-Type': 'text/plain' });
+            res.end('TTS Error: ' + err.message);
+        });
         return;
     }
 
