@@ -1,0 +1,453 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HERMES AI // 3D Cybernetic Market Co-Pilot</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Local Three.js for 100% Reliable 3D Cybernetic Hologram -->
+    <script src="three.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=Rajdhani:wght@500;600;700&family=Noto+Sans+Bengali:wght@400;600;700&display=swap" rel="stylesheet">
+</head>
+<body>
+    <div class="cyber-scanlines"></div>
+    <div class="cyber-vignette"></div>
+
+    <!-- MAIN CONTAINER -->
+    <div class="main-layout">
+        
+        <!-- TOP HUD RIBBON (EXPANDED INSTITUTIONAL TELEMETRY) -->
+        <header class="hud-header">
+            <div class="brand">
+                <span class="pulse-dot"></span>
+                <span class="brand-title">HERMES AI // OMNISCIENT QUANT CO-PILOT</span>
+                <span class="badge">v5.0 NEXUS</span>
+            </div>
+            
+            <div class="telemetry-bar">
+                <div class="tel-item">
+                    <span class="tel-label">GOLD (XAUUSD)</span>
+                    <span class="tel-val gold-val" id="hud-gold">$4,315.70</span>
+                    <span class="tel-sub" id="hud-gold-change">-0.45%</span>
+                </div>
+                <div class="tel-item">
+                    <span class="tel-label">YESTERDAY NY CLOSE</span>
+                    <span class="tel-val" id="hud-ny-close" style="color: #ffaa00;">$4,424.90</span>
+                    <span class="tel-sub" id="hud-ny-diff">-109.2 pts</span>
+                </div>
+                <div class="tel-item">
+                    <span class="tel-label">DAILY OPEN (00:00)</span>
+                    <span class="tel-val" id="hud-daily-open" style="color: #00f0ff;">$4,394.70</span>
+                    <span class="tel-sub" id="hud-daily-regime">DISCOUNT</span>
+                </div>
+                <div class="tel-item">
+                    <span class="tel-label">DOLLAR INDEX (DXY)</span>
+                    <span class="tel-val dxy-val" id="hud-dxy">101.01</span>
+                    <span class="tel-sub" id="hud-dxy-bias">STRONG (HAWKISH)</span>
+                </div>
+                <div class="tel-item">
+                    <span class="tel-label">MT5 ZERO-LOSS EA</span>
+                    <span class="tel-val ea-val" id="hud-ea-trades">0/4 TRADES</span>
+                    <span class="tel-sub" id="hud-ea-pnl">$0.00 USD</span>
+                </div>
+                <div class="tel-item">
+                    <span class="tel-label">25% BASKET TRAIL</span>
+                    <span class="tel-val trail-val" id="hud-trail">STANDBY ($3+)</span>
+                    <span class="tel-sub">MANUAL EXCLUDED</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- CENTER CONTENT: 3D ROBOT AVATAR & CONVERSATION -->
+        <main class="content-body">
+            
+            <!-- LEFT: 3D ROBOT VIEWPORT -->
+            <section class="robot-stage">
+                <div class="stage-overlay">
+                    <div class="status-chip" id="avatar-status">
+                        <span class="status-glow"></span>
+                        <span id="status-text">NEURAL SYNAPSE: ACTIVE</span>
+                    </div>
+                    <div class="emotion-meter" id="emotion-tag">STATE: ANALYZING</div>
+                </div>
+
+                <div id="three-container"></div>
+
+                <!-- AUDIO WAVEFORM VISUALIZER -->
+                <div class="waveform-box">
+                    <canvas id="waveform-canvas" width="340" height="40"></canvas>
+                    <div class="voice-status-line" id="voice-indicator">HERMES AUDIO: READY</div>
+                </div>
+            </section>
+
+            <!-- RIGHT: CO-PILOT INTELLIGENCE & CHAT CONSOLE -->
+            <section class="intel-console">
+                
+                <!-- 5 GLOBAL DATA SOURCES & AUTONOMOUS ENGINE -->
+                <div class="card sources-card">
+                    <div class="card-header">
+                        <span class="pulse-icon">📡</span>
+                        <span>5 LIVE GLOBAL SOURCES // ALL-TIME SELF-UPDATE</span>
+                        <span class="tag self-update-tag" id="self-update-badge">SYNC CYCLE #1</span>
+                    </div>
+                    <div class="sources-strip">
+                        <div class="src-pill active">
+                            <span class="src-dot"></span>
+                            <span class="src-name">XM MT5:</span>
+                            <span class="src-val" id="src-xm">0/4 Trades</span>
+                        </div>
+                        <div class="src-pill active">
+                            <span class="src-dot"></span>
+                            <span class="src-name">YAHOO:</span>
+                            <span class="src-val" id="src-yahoo">Gold & DXY</span>
+                        </div>
+                        <div class="src-pill active">
+                            <span class="src-dot"></span>
+                            <span class="src-name">INVESTING:</span>
+                            <span class="src-val" id="src-investing">74% Bullish</span>
+                        </div>
+                        <div class="src-pill active">
+                            <span class="src-dot"></span>
+                            <span class="src-name">FOREXFACTORY:</span>
+                            <span class="src-val" id="src-forex">No Blackout</span>
+                        </div>
+                        <div class="src-pill active">
+                            <span class="src-dot"></span>
+                            <span class="src-name">TRADINGVIEW:</span>
+                            <span class="src-val" id="src-tv">Strong Buy</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- YOUTUBE & WEB AUTONOMOUS STUDY MATRIX -->
+                <div class="card study-card">
+                    <div class="card-header">
+                        <span>🎓 YOUTUBE & WEB AUTONOMOUS STUDY MATRIX</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="tag" id="study-status-badge">AUTO STUDY: 15m</span>
+                            <button id="btn-study-now" class="study-action-btn">⚡ STUDY NOW</button>
+                        </div>
+                    </div>
+                    <div class="study-stats-grid">
+                        <div class="study-stat-item">
+                            <span class="study-icon">🧠</span>
+                            <div>
+                                <div class="study-stat-val" id="stat-total-insights">0</div>
+                                <div class="study-stat-label">Brain Insights</div>
+                            </div>
+                        </div>
+                        <div class="study-stat-item">
+                            <span class="study-icon">📺</span>
+                            <div>
+                                <div class="study-stat-val" id="stat-yt-count">0</div>
+                                <div class="study-stat-label">YouTube Videos</div>
+                            </div>
+                        </div>
+                        <div class="study-stat-item">
+                            <span class="study-icon">📰</span>
+                            <div>
+                                <div class="study-stat-val" id="stat-web-count">0</div>
+                                <div class="study-stat-label">Web Articles</div>
+                            </div>
+                        </div>
+                        <div class="study-stat-item">
+                            <span class="study-icon">🔄</span>
+                            <div>
+                                <div class="study-stat-val" id="stat-cycle-count">0</div>
+                                <div class="study-stat-label">Study Cycles</div>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- RECENT STUDY TICKER -->
+                    <div class="study-ticker" id="study-ticker">
+                        <span class="ticker-label">LATEST INSIGHT:</span>
+                        <span class="ticker-text" id="study-ticker-text">YouTube ও ফাইনান্সিয়াল ওয়েব থেকে নতুন ডেটা স্টাডি করছে...</span>
+                    </div>
+                </div>
+
+                <!-- SMC ICT INSTITUTIONAL BENCHMARKS CARD -->
+                <div class="card benchmarks-card">
+                    <div class="card-header">
+                        <span>🎯 SMC ICT INSTITUTIONAL BENCHMARKS & DAILY PROFILE</span>
+                        <span class="tag" id="tag-ssl-status" style="background: rgba(255, 170, 0, 0.2); border-color:#ffaa00; color:#ffaa00;">PDL SWEPT (DISCOUNT BUY)</span>
+                    </div>
+                    <div class="benchmarks-grid">
+                        <div class="bm-box">
+                            <span class="bm-label">YESTERDAY NY CLOSE</span>
+                            <span class="bm-val" id="bm-ny-close">$4,424.90</span>
+                            <span class="bm-sub" id="bm-ny-diff">-109.2 pts</span>
+                        </div>
+                        <div class="bm-box">
+                            <span class="bm-label">TODAY'S DAILY OPEN</span>
+                            <span class="bm-val" id="bm-daily-open">$4,394.70</span>
+                            <span class="bm-sub" id="bm-regime">DISCOUNT ACCUMULATION</span>
+                        </div>
+                        <div class="bm-box">
+                            <span class="bm-label">PREV DAY HIGH (PDH / BSL)</span>
+                            <span class="bm-val" id="bm-pdh">$4,414.10</span>
+                            <span class="bm-sub">BUY-SIDE LIQUIDITY</span>
+                        </div>
+                        <div class="bm-box">
+                            <span class="bm-label">PREV DAY LOW (PDL / SSL)</span>
+                            <span class="bm-val" id="bm-pdl">$4,327.60</span>
+                            <span class="bm-sub" style="color: #00ff66;">SELL-SIDE SWEPT ✅</span>
+                        </div>
+                        <div class="bm-box">
+                            <span class="bm-label">DEALING RANGE 50% EQ</span>
+                            <span class="bm-val" id="bm-equilibrium">$4,370.85</span>
+                            <span class="bm-sub">MIDPOINT EQUILIBRIUM</span>
+                        </div>
+                        <div class="bm-box">
+                            <span class="bm-label">NY MIDNIGHT OPEN</span>
+                            <span class="bm-val" id="bm-midnight">$4,380.00</span>
+                            <span class="bm-sub">TRUE ZERO LINE</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ANTIGRAVITY GEM MASTERPIECE 6-COUNCIL COCKPIT -->
+                <div class="card gem-cockpit-card">
+                    <div class="card-header">
+                        <span>🏛️ ANTIGRAVITY GEM MASTERPIECE VIP 6-COUNCIL COCKPIT</span>
+                        <span class="tag" style="background: rgba(0, 240, 255, 0.2); border-color:#00f0ff; color:#00f0ff;">6/6 COUNCILS ACTIVE</span>
+                    </div>
+                    <div class="council-grid">
+                        <div class="council-node active">
+                            <span class="c-badge">L1</span>
+                            <span class="c-title">LIQUIDITY HUNT</span>
+                            <span class="c-desc">12-Bar Sweep + CISD Body Break</span>
+                        </div>
+                        <div class="council-node active">
+                            <span class="c-badge">L2</span>
+                            <span class="c-title">KALMAN VELOCITY</span>
+                            <span class="c-desc">Zero-Lag Trend (Q=0.01, R=3.0)</span>
+                        </div>
+                        <div class="council-node active">
+                            <span class="c-badge">L3</span>
+                            <span class="c-title">ORDER FLOW CVD</span>
+                            <span class="c-desc">Tick Delta Absorption Micro-Tags</span>
+                        </div>
+                        <div class="council-node active">
+                            <span class="c-badge">L4</span>
+                            <span class="c-title">MACRO MATRIX</span>
+                            <span class="c-desc">200 EMA + NY Midnight Zero Line</span>
+                        </div>
+                        <div class="council-node active">
+                            <span class="c-badge">L5</span>
+                            <span class="c-title">KNN AI MEMORY</span>
+                            <span class="c-desc">10-Bar Historic Returns Pattern</span>
+                        </div>
+                        <div class="council-node active">
+                            <span class="c-badge">L6</span>
+                            <span class="c-title">POCKET PIVOT</span>
+                            <span class="c-desc">Institutional Buyer Absorption</span>
+                        </div>
+                    </div>
+                    <!-- POC, GPR & NEWS SHIELD SUB-STRIP -->
+                    <div class="cockpit-footer-strip">
+                        <div class="foot-item">
+                            <span class="foot-label">🌌 GPR CONFIDENCE:</span>
+                            <span class="foot-val" id="cockpit-gpr">±2σ Band (95.4% Win Prob)</span>
+                        </div>
+                        <div class="foot-item">
+                            <span class="foot-label">📍 SESSION POC:</span>
+                            <span class="foot-val" id="cockpit-poc">$4,320.00 Volume Magnet</span>
+                        </div>
+                        <div class="foot-item">
+                            <span class="foot-label">🛡️ 2.5x ATR SHIELD:</span>
+                            <span class="foot-val" id="cockpit-atr-shield">ARMED (&lt; $28 pt Candle Safe)</span>
+                        </div>
+                        <div class="foot-item">
+                            <span class="foot-label">🚨 NEWS BLACKOUT:</span>
+                            <span class="foot-val" id="cockpit-news-alert" style="color: #00ff66;">SAFE (No Red Folder within 30m)</span>
+                        </div>
+                    </div>
+                <!-- ULTRA ICT FUSION DASHBOARD - ANTIGRAVITY V3.60 -->
+                <div class="card fusion-dashboard-card">
+                    <div class="card-header">
+                        <span>⚡ ULTRA ICT FUSION DASHBOARD // ANTIGRAVITY V3.60</span>
+                        <div style="display:flex; align-items:center; gap:8px;">
+                            <span class="tag" id="fusion-setup-badge" style="background: rgba(0, 255, 102, 0.2); border-color:#00ff66; color:#00ff66;">FINAL SETUP: BUY SETUP (8/11)</span>
+                            <span class="tag" id="fusion-dominance-badge" style="background: rgba(0, 240, 255, 0.2); border-color:#00f0ff; color:#00f0ff;">73% BUY DOMINANCE</span>
+                        </div>
+                    </div>
+                    
+                    <!-- 3-COLUMN ULTRA DASHBOARD -->
+                    <div class="fusion-3col-grid">
+                        
+                        <!-- COLUMN 1: MAIN MARKET BIAS & MTF TREND -->
+                        <div class="fusion-col">
+                            <div class="col-title">[1] MAIN MARKET BIAS</div>
+                            <div class="col-item"><span class="ci-lbl">PDH Level:</span> <span class="ci-val" id="fcol-pdh">$4,414.10</span></div>
+                            <div class="col-item"><span class="ci-lbl">PDL Level:</span> <span class="ci-val" id="fcol-pdl">$4,327.60</span></div>
+                            <div class="col-item"><span class="ci-lbl">Dominant Side:</span> <span class="ci-val" id="fcol-dominant" style="color:#00ff66;">BUY ONLY</span></div>
+                            <div class="col-item"><span class="ci-lbl">Session:</span> <span class="ci-val" id="fcol-session">LONDON / NY KILLZONE</span></div>
+                            <div class="col-item"><span class="ci-lbl">Liquidity Sweep:</span> <span class="ci-val" id="fcol-sweep" style="color:#00ff66;">PDL Sweep Confirmed</span></div>
+                            <div class="col-item"><span class="ci-lbl">HTF EMA Bias:</span> <span class="ci-val" id="fcol-ema-bias" style="color:#00ff66;">BULLISH (Above 200)</span></div>
+                            <div class="col-item"><span class="ci-lbl">ADX Trend Score:</span> <span class="ci-val" id="fcol-adx-score">73/100 Strong</span></div>
+                            <div class="col-item"><span class="ci-lbl">AI Forecast (KNN):</span> <span class="ci-val" id="fcol-ai-dir" style="color:#00f0ff;">BULLISH (+18 pts)</span></div>
+                            <div class="mtf-substrip">
+                                <div class="mtf-title">MTF TREND SUMMARY:</div>
+                                <div class="mtf-badges">
+                                    <span class="mtf-pill" id="mtf-m5">M5: BULL 🟢</span>
+                                    <span class="mtf-pill" id="mtf-h1">H1: BULL 🟢</span>
+                                    <span class="mtf-pill" id="mtf-h4">H4: BEAR 🔴</span>
+                                    <span class="mtf-pill" id="mtf-d1">D1: BULL 🟢</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- COLUMN 2: EXTRA MARKET SYSTEMS & EXIT PLAN -->
+                        <div class="fusion-col">
+                            <div class="col-title">[2] EXTRA MARKET SYSTEMS</div>
+                            <div class="col-item"><span class="ci-lbl">1. Market Structure:</span> <span class="ci-val" id="fcol-struct" style="color:#00ff66;">BULLISH (BOS)</span></div>
+                            <div class="col-item"><span class="ci-lbl">2. Premium / Discount:</span> <span class="ci-val" id="fcol-zone" style="color:#00f0ff;">DISCOUNT (Accumulation)</span></div>
+                            <div class="col-item"><span class="ci-lbl">3. Imbalance / FVG:</span> <span class="ci-val" id="fcol-fvg" style="color:#00ff66;">BULL ACTIVE ($4,305-$4,312)</span></div>
+                            <div class="col-item"><span class="ci-lbl">4. OTE Zone (Fib):</span> <span class="ci-val" id="fcol-ote">BUY OTE WAIT (62%-79%)</span></div>
+                            <div class="col-item"><span class="ci-lbl">5. OB Block Watch:</span> <span class="ci-val" id="fcol-ob" style="color:#00ff66;">BULL WATCH ($4,315.00)</span></div>
+                            <div class="col-item"><span class="ci-lbl">6. ICT SMT Div.:</span> <span class="ci-val" id="fcol-smt" style="color:#00ff66;">BULLISH (DXY Divergence)</span></div>
+                            <div class="col-item"><span class="ci-lbl">7. AMD Power Phase:</span> <span class="ci-val" id="fcol-amd">DISTRIBUTION EXPANSION</span></div>
+                            <div class="col-item"><span class="ci-lbl">8. Economic News:</span> <span class="ci-val" id="fcol-news-status" style="color:#00ff66;">CALM (No Red Folder)</span></div>
+                            <div class="exit-substrip">
+                                <div class="exit-title">STRONG EXIT PLAN:</div>
+                                <div class="exit-desc" id="fcol-exit-plan">Plan Side: BUY | Decision: HOLD TO TP1 | Reason: Bullish Spring in play</div>
+                            </div>
+                        </div>
+
+                        <!-- COLUMN 3: REAL / FAKE MOVE & VOLUME ANALYSER -->
+                        <div class="fusion-col">
+                            <div class="col-title">[3] REAL / FAKE MOVE & VOLUME</div>
+                            <div class="col-item"><span class="ci-lbl">Real Move:</span> <span class="ci-val" id="fcol-real-move" style="color:#00ff66;">BUY real 100%</span></div>
+                            <div class="col-item"><span class="ci-lbl">Fake Move:</span> <span class="ci-val" id="fcol-fake-move">Weak 10% (Trap Cleared)</span></div>
+                            <div class="col-item"><span class="ci-lbl">Move Bias:</span> <span class="ci-val" id="fcol-move-bias" style="color:#00ff66;">BUY continuation</span></div>
+                            <div class="col-item"><span class="ci-lbl">Confidence:</span> <span class="ci-val" id="fcol-move-conf">84% [★★★★☆]</span></div>
+                            <div class="col-item"><span class="ci-lbl">Trigger:</span> <span class="ci-val" id="fcol-move-trigger">Low sweep rejected</span></div>
+                            <div class="col-item"><span class="ci-lbl">Volume Spike:</span> <span class="ci-val" id="fcol-vol-spike" style="color:#00ff66;">YES (1.5x Session Avg)</span></div>
+                            <div class="col-item"><span class="ci-lbl">Displacement:</span> <span class="ci-val" id="fcol-displacement" style="color:#00ff66;">YES (Institutional Wave)</span></div>
+                            <div class="col-item"><span class="ci-lbl">Trend Change:</span> <span class="ci-val" id="fcol-trend-change" style="color:#00ff66;">BULLISH CONFIRMED</span></div>
+                            <div class="col-item"><span class="ci-lbl">Setup Score:</span> <span class="ci-val" id="fcol-setup-score" style="color:#00ff66;">8 / 11 CONFLUENCE</span></div>
+                        </div>
+
+                    </div>
+
+                    <!-- 11-INDICATOR CONFLUENCE SCORE MATRIX -->
+                    <div class="fusion-confluence-strip">
+                        <div class="conf-indicators-row">
+                            <div class="conf-chip active" id="chip-ema"><span class="chip-name">EMA200</span> <span class="chip-led" id="led-ema">🟢</span></div>
+                            <div class="conf-chip active" id="chip-rsi"><span class="chip-name">RSI14</span> <span class="chip-led" id="led-rsi">🟢</span></div>
+                            <div class="conf-chip active" id="chip-macd"><span class="chip-name">MACD</span> <span class="chip-led" id="led-macd">🟢</span></div>
+                            <div class="conf-chip active" id="chip-stoch"><span class="chip-name">STOCH</span> <span class="chip-led" id="led-stoch">🟢</span></div>
+                            <div class="conf-chip active" id="chip-adx"><span class="chip-name">ADX</span> <span class="chip-led" id="led-adx">🟢</span></div>
+                            <div class="conf-chip active" id="chip-smc"><span class="chip-name">SMC</span> <span class="chip-led" id="led-smc">🟢</span></div>
+                            <div class="conf-chip active" id="chip-smma"><span class="chip-name">SMMA</span> <span class="chip-led" id="led-smma">🟢</span></div>
+                            <div class="conf-chip active" id="chip-cci"><span class="chip-name">CCI</span> <span class="chip-led" id="led-cci">🟢</span></div>
+                            <div class="conf-chip active" id="chip-bb"><span class="chip-name">BB</span> <span class="chip-led" id="led-bb">🟢</span></div>
+                            <div class="conf-chip active" id="chip-obv"><span class="chip-name">OBV</span> <span class="chip-led" id="led-obv">🟢</span></div>
+                            <div class="conf-chip active" id="chip-mfi"><span class="chip-name">MFI</span> <span class="chip-led" id="led-mfi">🟢</span></div>
+                        </div>
+                        <div class="conf-power-row">
+                            <div class="power-bar-item buy">
+                                <span class="pb-label">[+] Buy Strength:</span>
+                                <span class="pb-val" id="pb-buy-val">73% [★★★★☆] (8 / 11)</span>
+                            </div>
+                            <div class="power-bar-item sell">
+                                <span class="pb-label">[-] Sell Strength:</span>
+                                <span class="pb-val" id="pb-sell-val">27% [★★☆☆☆] (3 / 11)</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- AI QUANTITATIVE SIGNAL COMMENTARY BLOCK -->
+                    <div class="fusion-commentary-box" id="fusion-commentary-box">
+                        <div class="comm-header">AI QUANTITATIVE SIGNAL ANALYSIS:</div>
+                        <div class="comm-body" id="fusion-commentary-text">
+                            STRONG BUY SETUP: Trend, Session, and Volume are aligned. Wait for FVG/OB pullback into $4,312-$4,315 zone.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- CONVERSATION FEED -->
+                <div class="card chat-card">
+                    <div class="chat-history" id="chat-stream">
+                        <div class="msg hermes-msg">
+                            <div class="msg-header">
+                                <span class="sender-name">🤖 HERMES AI CO-PILOT</span>
+                                <span class="time-stamp">JUST NOW</span>
+                            </div>
+                            <div class="msg-body">
+                                কমান্ডার, আসসালামু আলাইকুম! হার্মিস এআই ককপিট লাইভ রেডি আছে।
+                                <br><br>
+                                আপনি যেকোনো কথা লিখতে পারেন, মাইকে মুখে বলতে পারেন, কিংবা <strong>শুধুমাত্র ১ থেকে ১৩ নম্বর</strong> টাইপ বা ক্লিক করতে পারেন:
+                                <div style="margin-top:10px; line-height:1.9; font-size:13px; color:#00f0ff; background:rgba(0,240,255,0.06); padding:10px 14px; border-radius:8px; border:1px solid rgba(0,240,255,0.2);">
+                                <strong>[1]</strong> গোল্ডের পরবর্তী মুভ ও টার্গেট কী?<br>
+                                <strong>[2]</strong> এখন কি কোনো Buy/Sell এন্ট্রি নেওয়া যাবে?<br>
+                                <strong>[3]</strong> SMC AI Fusion-এর ১১টি ইন্ডিকেটর কী বলছে?<br>
+                                <strong>[4]</strong> গতকালের NY Close ও আজকের Daily Open স্ট্যাটাস কী?<br>
+                                <strong>[5]</strong> গোল্ড হঠাৎ কেন নামলো বা বাড়লো? (ম্যাক্রো ফ্যাক্টর)<br>
+                                <strong>[6]</strong> আমাদের ২-টায়ার ক্যাশ লক ও লট সাইজিং ডকট্রিন কী?<br>
+                                <strong>[7]</strong> কোনো হাই-ইমপ্যাক্ট রেড ফোল্ডার নিউজ ব্ল্যাকআউট আছে কি?<br>
+                                <strong>[8]</strong> ইউটিউব ও ওয়েব স্টাডি থেকে আজ নতুন কী শিখলে?<br>
+                                <strong>[9]</strong> Buy এন্ট্রি নিবো কি? (Spring & Cash Lock Rules)<br>
+                                <strong>[10]</strong> Sell এন্ট্রি নিবো কি? (Discount Trap Warning)<br>
+                                <strong>[11]</strong> লিকুইডিটি ও ভলিউমের কী অবস্থা? (CVD & Sweeps)<br>
+                                <strong>[12]</strong> কোয়ান্টাম ভলিউম কী বলছে? (Ek, Hurst, Entropy)<br>
+                                <strong>[13]</strong> রোবটের নতুন রিসার্চ আপডেট কী? (Quant & Web Study)
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- NUMBERED QUICK QUESTIONS STRIP -->
+                    <div class="quick-questions-panel">
+                        <div class="qq-title">⚡ দ্রুত প্রশ্ন (১ থেকে ১৩ চাপুন বা ক্লিক করুন):</div>
+                        <div class="qq-chips">
+                            <button class="qq-chip" data-num="1" title="নম্বর ১: গোল্ডের পরবর্তী মুভ ও টার্গেট কী?"><strong>[1]</strong> গোল্ড কোথায় যাবে?</button>
+                            <button class="qq-chip" data-num="2" title="নম্বর ২: এখন কি কোনো বাই/সেল এন্ট্রি নেওয়া যাবে?"><strong>[2]</strong> এন্ট্রি সিগনাল চেক</button>
+                            <button class="qq-chip" data-num="3" title="নম্বর ৩: SMC AI Fusion-এর ১১টি ইন্ডিকেটর কী বলছে?"><strong>[3]</strong> ১১টি ইন্ডিকেটর</button>
+                            <button class="qq-chip" data-num="4" title="নম্বর ৪: গতকালের NY Close ও আজকের Daily Open স্ট্যাটাস কী?"><strong>[4]</strong> NY Close & Open</button>
+                            <button class="qq-chip" data-num="5" title="নম্বর ৫: গোল্ড হঠাৎ কেন নামলো বা বাড়লো?"><strong>[5]</strong> গোল্ড মুভের কারণ</button>
+                            <button class="qq-chip" data-num="6" title="নম্বর ৬: আমাদের ২-টায়ার ক্যাশ লক ও লট সাইজিং ডকট্রিন কী?"><strong>[6]</strong> ক্যাশ লক ডকট্রিন</button>
+                            <button class="qq-chip" data-num="7" title="নম্বর ৭: কোনো রেড ফোল্ডার নিউজ ব্ল্যাকআউট আছে কি?"><strong>[7]</strong> নিউজ ব্ল্যাকআউট</button>
+                            <button class="qq-chip" data-num="8" title="নম্বর ৮: ইউটিউব ও ওয়েব স্টাডি থেকে আজ নতুন কী শিখলে?"><strong>[8]</strong> ইউটিউব এআই স্টাডি</button>
+                            <button class="qq-chip" data-num="9" title="নম্বর ৯: Buy এন্ট্রি নিবো কি?"><strong>[9]</strong> 🟢 Buy এন্ট্রি নিবো?</button>
+                            <button class="qq-chip" data-num="10" title="নম্বর ১০: Sell এন্ট্রি নিবো কি?"><strong>[10]</strong> 🔴 Sell এন্ট্রি নিবো?</button>
+                            <button class="qq-chip" data-num="11" title="নম্বর ১১: লিকুইডিটি ও ভলিউমের কী অবস্থা?"><strong>[11]</strong> 💧 লিকুইডিটি ও ভলিউম</button>
+                            <button class="qq-chip" data-num="12" title="নম্বর ১২: কোয়ান্টাম ভলিউম কী বলছে?"><strong>[12]</strong> ⚛️ কোয়ান্টাম ভলিউম</button>
+                            <button class="qq-chip" data-num="13" title="নম্বর ১৩: রোবটের নতুন রিসার্চ আপডেট কী?"><strong>[13]</strong> 🔬 নতুন রিসার্চ আপডেট</button>
+                        </div>
+                    </div>
+
+                    <!-- VOICE & TEXT INPUT CONTROLS -->
+                    <div class="input-console">
+                        <button class="mic-btn" id="mic-trigger" title="মুখে কথা বলতে ক্লিক করুন (ভয়েস ইনপুট)">
+                            <svg class="mic-icon" viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+                                <path fill="currentColor" d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+                            </svg>
+                            <span class="mic-glow"></span>
+                        </button>
+                        <button class="lang-btn" id="lang-trigger" title="ভয়েস ভাষা পরিবর্তন করুন (বাংলা / English)">BN</button>
+
+                        <input type="text" id="user-input" placeholder="কমান্ডার, ১ থেকে ১৩ নম্বর চাপুন, মুখে বলুন বা টাইপ করুন..." autocomplete="off">
+                        
+                        <button class="send-btn" id="send-trigger">
+                            <span>TRANSMIT</span>
+                            <svg viewBox="0 0 24 24" width="18" height="18">
+                                <path fill="currentColor" d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/>
+                            </svg>
+                        </button>
+                    </div>
+                </div>
+
+        </main>
+    </div>
+
+    <!-- QUICK UP / DOWN SCROLL CONTROLS -->
+    <div class="quick-scroll-bar" id="quick-scroll-bar">
+        <button class="scroll-btn" id="scroll-top-btn" title="উপরে যান (Top of Cockpit)">▲ TOP</button>
+        <button class="scroll-btn" id="scroll-bottom-btn" title="নিচে চ্যাটে যান (Bottom Chat & Voice)">▼ CHAT</button>
+    </div>
+
+    <script src="app.js"></script>
+</body>
+</html>
