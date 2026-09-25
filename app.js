@@ -298,10 +298,62 @@ if (window.speechSynthesis) {
     };
 }
 
+// ===================================================================
+// 3. VOICE PERSONA SYSTEM (COMMANDER OMAR CUSTOM CO-PILOT VOICE)
+// 1. CYBER_DEEP: Deep resonant institutional JARVIS male AI (Pitch: 0.78, Rate: 0.95)
+// 2. NATURAL_BENGALI: Natural conversational Bengali studio voice (Pitch: 1.0, Rate: 1.0)
+// 3. EXECUTIVE_BANGLISH: Elite Quant desk English/Banglish voice (Pitch: 0.88, Rate: 0.98)
+// ===================================================================
+let currentVoicePersona = localStorage.getItem('hermes_voice_persona') || 'CYBER_DEEP';
+const voicePersonaTrigger = document.getElementById('voice-persona-trigger');
+
+function updateVoicePersonaButtonUI() {
+    if (!voicePersonaTrigger) return;
+    if (currentVoicePersona === 'CYBER_DEEP') {
+        voicePersonaTrigger.innerHTML = '🎙️ CYBER DEEP';
+        voicePersonaTrigger.style.borderColor = '#ffaa00';
+        voicePersonaTrigger.style.color = '#ffaa00';
+        voicePersonaTrigger.title = 'Current: Cyber Deep JARVIS (Institutional Male). Click to switch.';
+    } else if (currentVoicePersona === 'NATURAL_BENGALI') {
+        voicePersonaTrigger.innerHTML = '🎙️ NATURAL BN';
+        voicePersonaTrigger.style.borderColor = '#00ff66';
+        voicePersonaTrigger.style.color = '#00ff66';
+        voicePersonaTrigger.title = 'Current: Natural Bengali Studio Voice. Click to switch.';
+    } else {
+        voicePersonaTrigger.innerHTML = '🎙️ EXECUTIVE EN';
+        voicePersonaTrigger.style.borderColor = '#00f0ff';
+        voicePersonaTrigger.style.color = '#00f0ff';
+        voicePersonaTrigger.title = 'Current: Executive Quant Desk Voice. Click to switch.';
+    }
+}
+updateVoicePersonaButtonUI();
+
+if (voicePersonaTrigger) {
+    voicePersonaTrigger.addEventListener('click', () => {
+        if (currentVoicePersona === 'CYBER_DEEP') {
+            currentVoicePersona = 'NATURAL_BENGALI';
+        } else if (currentVoicePersona === 'NATURAL_BENGALI') {
+            currentVoicePersona = 'EXECUTIVE_BANGLISH';
+        } else {
+            currentVoicePersona = 'CYBER_DEEP';
+        }
+        localStorage.setItem('hermes_voice_persona', currentVoicePersona);
+        updateVoicePersonaButtonUI();
+        if (statusText) statusText.innerText = `VOICE PERSONA: ${voicePersonaTrigger.innerText}`;
+        speakHermesVoice(currentVoicePersona === 'CYBER_DEEP' ? 'মিয়াভাই, সাইবার ডিপ ভয়েস সিলেক্ট করা হয়েছে।' : (currentVoicePersona === 'NATURAL_BENGALI' ? 'মিয়াভাই, ন্যাচারাল বাংলা ভয়েস সিলেক্ট করা হয়েছে।' : 'Commander Omar, executive quant voice active.'));
+    });
+}
+
 function speakHermesVoice(text) {
     if (!text) return;
     const cleanText = cleanTextForSpeech(text);
     if (!cleanText) return;
+
+    // For CYBER_DEEP and EXECUTIVE_BANGLISH, browser Web Speech API provides deep pitch modulation and realistic timbre
+    if (window.speechSynthesis && (currentVoicePersona === 'CYBER_DEEP' || currentVoicePersona === 'EXECUTIVE_BANGLISH')) {
+        speakWithBrowserSpeechSynthesis(cleanText);
+        return;
+    }
 
     if (!activeVoiceAudio) {
         activeVoiceAudio = new Audio();
@@ -312,7 +364,7 @@ function speakHermesVoice(text) {
         activeVoiceAudio.currentTime = 0;
     } catch(e) {}
 
-    // Use our high-fidelity Bengali TTS MP3 stream
+    // Use high-fidelity Bengali TTS MP3 stream
     const ttsUrl = '/api/tts?text=' + encodeURIComponent(cleanText);
     activeVoiceAudio.src = ttsUrl;
 
@@ -364,20 +416,48 @@ function speakWithBrowserSpeechSynthesis(cleanText) {
     } catch(e) {}
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-
-    const hasBengali = /[\u0980-\u09FF]/.test(cleanText);
     const voices = synth.getVoices() || [];
+    const hasBengali = /[\u0980-\u09FF]/.test(cleanText);
 
-    if (hasBengali) {
-        utterance.lang = 'bn-BD';
-        const bnVoice = voices.find(v => (v.lang && (v.lang.includes('bn') || v.lang.includes('ben'))));
-        if (bnVoice) utterance.voice = bnVoice;
-    } else {
-        utterance.lang = 'en-US';
-        const enVoice = voices.find(v => v.lang && v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('Google') || v.name.includes('David')));
-        if (enVoice) utterance.voice = enVoice;
+    if (currentVoicePersona === 'CYBER_DEEP') {
+        utterance.pitch = 0.76; // Deep, authoritative JARVIS-like cybernetic tone
+        utterance.rate  = 0.94; // Calm, measured institutional tempo
+        if (hasBengali) {
+            utterance.lang = 'bn-BD';
+            const maleBn = voices.find(v => v.lang && (v.lang.includes('bn') || v.lang.includes('ben')) && (v.name.includes('Bashkar') || v.name.includes('Pradeep') || v.name.includes('Male')));
+            const anyBn  = voices.find(v => v.lang && (v.lang.includes('bn') || v.lang.includes('ben')));
+            if (maleBn) utterance.voice = maleBn;
+            else if (anyBn) utterance.voice = anyBn;
+        } else {
+            utterance.lang = 'en-US';
+            const deepEn = voices.find(v => v.lang && v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('David') || v.name.includes('Guy') || v.name.includes('Ryan') || v.name.includes('Male')));
+            if (deepEn) utterance.voice = deepEn;
+        }
+    } else if (currentVoicePersona === 'NATURAL_BENGALI') {
+        utterance.pitch = 1.0;
+        utterance.rate  = 1.0;
+        if (hasBengali) {
+            utterance.lang = 'bn-BD';
+            const naturalBn = voices.find(v => (v.name.includes('Natural') || v.name.includes('Google বাংলা') || v.name.includes('Online')) && (v.lang.includes('bn') || v.lang.includes('ben'))) ||
+                              voices.find(v => v.lang && (v.lang.includes('bn') || v.lang.includes('ben')));
+            if (naturalBn) utterance.voice = naturalBn;
+        } else {
+            utterance.lang = 'en-US';
+            const enVoice = voices.find(v => v.lang && v.lang.includes('en') && v.name.includes('Natural'));
+            if (enVoice) utterance.voice = enVoice;
+        }
+    } else { // EXECUTIVE_BANGLISH
+        utterance.pitch = 0.88;
+        utterance.rate  = 0.98;
+        if (hasBengali) {
+            utterance.lang = 'bn-BD';
+            const bnVoice = voices.find(v => (v.lang && (v.lang.includes('bn') || v.lang.includes('ben'))));
+            if (bnVoice) utterance.voice = bnVoice;
+        } else {
+            utterance.lang = 'en-US';
+            const execVoice = voices.find(v => v.lang && v.lang.includes('en') && (v.name.includes('Natural') || v.name.includes('UK') || v.name.includes('Google UK') || v.name.includes('George')));
+            if (execVoice) utterance.voice = execVoice;
+        }
     }
 
     utterance.onstart = () => {

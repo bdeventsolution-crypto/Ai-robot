@@ -79,8 +79,9 @@ const HERMES_BRAIN = {
         sl: 'Dynamic SL = Entry ± (1.25 × ATR14). Never move SL against trade.',
         tp1: 'Milestone 1 at 1:1 RR (+800 to +1000 points = +$30 to $50): Close 50% immediately. Bank cash.',
         tp2: 'Runner target at 1:2.5 RR. Move SL to Break-Even after Phase 2.',
-        basket_trailing: '25% Basket Trailing Engine: When 2+ EA trades with net profit >= $3.00 USD: track peak profit. If retrace 25% from peak = close ALL EA positions.',
-        four_trade_cap: '4 open EA trades = hard cap. System freezes auto-trading and sends Telegram alert.',
+        basket_trailing: '25% Basket Trailing Engine: $5.00+ USD in Asian Session (locks $3.75+ cash in bank) / $10.00+ USD in London/NY. Zero-loss.',
+        yellow_line_rule: 'Yellow Line Master Rule: Price BELOW Yellow Line = ONLY SELL signals allowed; Price ABOVE Yellow Line = ONLY BUY signals allowed. Exit BUY on upward yellow flip; exit SELL on downward yellow flip with profit.',
+        four_trade_cap: '4 open EA trades = hard cap. System freezes auto-trading and sends Telegram/Hermes alert to Commander Omar.',
         zero_loss: 'Zero-Loss Policy: NEVER close a trade at a loss manually. Wait for reversal. DCA if needed.',
         news_freeze: 'NEWS BLACKOUT: 30 min before + 30 min after any HIGH impact USD/EUR event. No entries.',
         atr_filter: '2.5x ATR News Candle Filter: If current M15 candle range > 2.5 × ATR(14) = skip entry. Wait next candle.'
@@ -108,7 +109,7 @@ const HERMES_BRAIN = {
 // ██ BLOCK 2: LIVE MARKET STATE (5-SOURCE DATA CACHE)
 // ══════════════════════════════════════════════════════════════════════════════
 let globalMarketState = {
-    xm: { goldPrice: 0, spread: 12, activePositions: 0, floatingPnL: 0.0, capStatus: "0/4 TRADES (AUTO ACTIVE)", basketTrailing: "STANDBY ($3.00+ Net)", lastUpdate: new Date().toISOString() },
+    xm: { goldPrice: 0, spread: 12, activePositions: 0, floatingPnL: 0.0, capStatus: "0/4 TRADES (AUTO ACTIVE)", basketTrailing: "STANDBY ($5.00+ Asian)", lastUpdate: new Date().toISOString() },
     yahoo: { goldPrice: 4315.70, goldChange: '-0.45%', goldHigh: 4340, goldLow: 4305, goldVolume: 0, dxyPrice: 101.01, dxyChange: '+0.41%', dxyBias: 'STRONG (HAWKISH)', us10yYield: 4.18, oilPrice: 71.85, sp500: 5880, lastUpdate: new Date().toISOString() },
     yahooDatabase: {
         source: 'Yahoo Finance Free Historical Database (v8/chart)',
@@ -2208,6 +2209,39 @@ const server = http.createServer((req, res) => {
         });
         res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
         res.end(JSON.stringify({ message: 'Study cycle initiated! Scraping YouTube, FXStreet, Yahoo RSS & Investing.com...' }));
+        return;
+    }
+
+    // Live MT5 Data Push from Commander Omar's Local PC (POST /api/mt5-sync)
+    if (pathname === '/api/mt5-sync' && req.method === 'POST') {
+        let body = '';
+        req.on('data', chunk => body += chunk);
+        req.on('end', () => {
+            try {
+                const data = JSON.parse(body);
+                if (data.goldPrice) {
+                    const gp = parseFloat(data.goldPrice);
+                    if (!isNaN(gp) && gp > 1000) {
+                        globalMarketState.yahoo.goldPrice = gp;
+                        globalMarketState.xm.goldPrice = gp;
+                    }
+                }
+                if (data.xm) {
+                    globalMarketState.xm = Object.assign(globalMarketState.xm, data.xm, { lastUpdate: new Date().toISOString() });
+                }
+                if (data.smcFusion) {
+                    globalMarketState.smcFusion = Object.assign(globalMarketState.smcFusion, data.smcFusion);
+                }
+                if (data.benchmarks) {
+                    globalMarketState.benchmarks = Object.assign(globalMarketState.benchmarks, data.benchmarks);
+                }
+                res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' });
+                res.end(JSON.stringify({ status: 'OK', syncedAt: new Date().toISOString() }));
+            } catch(e) {
+                res.writeHead(400, { 'Content-Type': 'application/json' });
+                res.end(JSON.stringify({ error: e.message }));
+            }
+        });
         return;
     }
 
