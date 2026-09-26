@@ -147,7 +147,7 @@ let globalMarketState = {
     },
     smcFusion: {
         tradeCap: "0/4 Strict Ceiling (EA Magic 999888)",
-        basketTrailing: "25% Multi-Layer Engine ($3.00+ Net Start)",
+        basketTrailing: "25% Multi-Layer Engine ($5.00+ Asian / $10.00+ London)",
         zeroLossPolicy: "100% Armed — Negative Trades NEVER Cut",
         fvgImbalance: "M15 Bullish FVG at $4,305 - $4,312",
         killzone: "London / NY Killzone Active"
@@ -1866,7 +1866,7 @@ ${B.doctrine.atr_filter}`;
 • Active EA Trades: ${g.xm.activePositions}/4
 • Floating P&L: $${g.xm.floatingPnL.toFixed(2)}
 • 4-Trade Cap: ${g.xm.activePositions >= 4 ? '🔴 MAXED' : '🟢 Available'}
-• Basket Trailing: ${g.xm.floatingPnL >= 3 ? '🟡 ACTIVE' : '⏳ STANDBY ($3.00+)'}
+• Basket Trailing: ${g.xm.floatingPnL >= 5 ? '🟡 ACTIVE' : '⏳ STANDBY ($5.00+ Asian / $10.00+ London)'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 📰 **News Blackout:** ${g.forexfactory.newsBlackoutActive ? '🔴 ACTIVE — NO TRADES' : '🟢 CLEAR — Safe to Trade'}
